@@ -179,7 +179,7 @@ class InvoiceService
         $this->invoice = (new MarkSent($this->invoice->client, $this->invoice))->run();
 
         $this->setExchangeRate();
-
+        
         return $this;
     }
 
@@ -341,7 +341,7 @@ class InvoiceService
             if(Storage::disk(config('filesystems.default'))->exists($this->invoice->client->invoice_filepath($invitation) . $this->invoice->numberFormatter().'.pdf'))
                 Storage::disk(config('filesystems.default'))->delete($this->invoice->client->invoice_filepath($invitation) . $this->invoice->numberFormatter().'.pdf');
             
-            if(Ninja::isHosted() && Storage::disk(config('filesystems.default'))->exists($this->invoice->client->invoice_filepath($invitation) . $this->invoice->numberFormatter().'.pdf')) {
+            if(Ninja::isHosted() && Storage::disk('public')->exists($this->invoice->client->invoice_filepath($invitation) . $this->invoice->numberFormatter().'.pdf')) {
                 Storage::disk('public')->delete($this->invoice->client->invoice_filepath($invitation) . $this->invoice->numberFormatter().'.pdf');
             }
 
@@ -565,10 +565,11 @@ class InvoiceService
         return $this;
     }
 
-    public function adjustInventory()
+    public function adjustInventory($old_invoice = [])
     {
+
         if($this->invoice->company->track_inventory)
-            AdjustProductInventory::dispatch($this->invoice->company, $this->invoice, null);
+            AdjustProductInventory::dispatchNow($this->invoice->company, $this->invoice, $old_invoice);
 
         return $this;
     }

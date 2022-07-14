@@ -225,6 +225,7 @@ class InvoiceController extends BaseController
         $invoice = $invoice->service()
                            ->fillDefaults()
                            ->triggeredActions($request)
+                           ->adjustInventory()
                            ->save();
 
         event(new InvoiceWasCreated($invoice, $invoice->company, Ninja::eventVars(auth()->user() ? auth()->user()->id : null)));
@@ -414,9 +415,14 @@ class InvoiceController extends BaseController
             return response()->json(['message' => ctrans('texts.locked_invoice')], 403);
         }
 
+        $old_invoice = $invoice->line_items;
+
         $invoice = $this->invoice_repo->save($request->all(), $invoice);
-        
-        $invoice->service()->triggeredActions($request)->touchPdf();
+
+        $invoice->service()
+                ->triggeredActions($request)
+                ->touchPdf()
+                ->adjustInventory($old_invoice);
 
         event(new InvoiceWasUpdated($invoice, $invoice->company, Ninja::eventVars(auth()->user() ? auth()->user()->id : null)));
 
@@ -709,7 +715,6 @@ class InvoiceController extends BaseController
                         echo Storage::get($file);
                 },  basename($file), ['Content-Type' => 'application/pdf']);
 
-
                 break;
             case 'restore':
                 $this->invoice_repo->restore($invoice);
@@ -740,13 +745,7 @@ class InvoiceController extends BaseController
                     $this->itemResponse($invoice);
                 }
                 break;
-            // case 'reverse':
-            //     $invoice = $invoice->service()->handleReversal()->deletePdf()->save();
 
-            //     if (! $bulk) {
-            //         $this->itemResponse($invoice);
-            //     }
-            //     break;
             case 'email':
                 //check query parameter for email_type and set the template else use calculateTemplate
 
@@ -763,6 +762,24 @@ class InvoiceController extends BaseController
                     return response()->json(['message' => 'email sent'], 200);
                 }
                 break;
+
+            case 'send_email':
+                //check query parameter for email_type and set the template else use calculateTemplate
+
+
+                if (request()->has('email_type') && property_exists($invoice->company->settings, request()->input('email_type'))) {
+                    $this->reminder_template = $invoice->client->getSetting(request()->input('email_type'));
+                } else {
+                    $this->reminder_template = $invoice->calculateTemplate('invoice');
+                }
+
+                BulkInvoiceJob::dispatch($invoice, $this->reminder_template);
+
+                if (! $bulk) {
+                    return response()->json(['message' => 'email sent'], 200);
+                }
+                break;
+
 
             default:
                 return response()->json(['message' => ctrans('texts.action_unavailable', ['action' => $action])], 400);

@@ -44,6 +44,8 @@ class InvoiceSum
 
     private $gross_sub_total;
 
+    private $precision;
+
     /**
      * Constructs the object with Invoice and Settings object.
      *
@@ -53,8 +55,10 @@ class InvoiceSum
     {
         $this->invoice = $invoice;
 
-        // if(!$this->invoice->relationLoaded('client'))
-        //     $this->invoice->load('client');
+        if($this->invoice->client)
+            $this->precision = $this->invoice->client->currency()->precision;
+        else
+            $this->precision = $this->invoice->vendor->currency()->precision;
 
         $this->tax_map = new Collection;
     }
@@ -97,16 +101,12 @@ class InvoiceSum
     private function calculateCustomValues()
     {
 
-        // $this->total_taxes += $this->valuerTax($this->invoice->custom_surcharge1, $this->invoice->custom_surcharge_tax1);
         $this->total_custom_values += $this->valuer($this->invoice->custom_surcharge1);
 
-        // $this->total_taxes += $this->valuerTax($this->invoice->custom_surcharge2, $this->invoice->custom_surcharge_tax2);
         $this->total_custom_values += $this->valuer($this->invoice->custom_surcharge2);
 
-        // $this->total_taxes += $this->valuerTax($this->invoice->custom_surcharge3, $this->invoice->custom_surcharge_tax3);
         $this->total_custom_values += $this->valuer($this->invoice->custom_surcharge3);
 
-        // $this->total_taxes += $this->valuerTax($this->invoice->custom_surcharge4, $this->invoice->custom_surcharge_tax4);
         $this->total_custom_values += $this->valuer($this->invoice->custom_surcharge4);
 
         $this->total += $this->total_custom_values;
@@ -151,7 +151,7 @@ class InvoiceSum
      */
     private function calculateBalance()
     {
-        //$this->invoice->balance = $this->balance($this->getTotal(), $this->invoice);
+
         $this->setCalculatedAttributes();
 
         return $this;
@@ -169,22 +169,6 @@ class InvoiceSum
     private function calculateTotals()
     {
         $this->total += $this->total_taxes;
-
-        // if (is_numeric($this->invoice->custom_value1)) {
-        //     $this->total += $this->invoice->custom_value1;
-        // }
-
-        // if (is_numeric($this->invoice->custom_value2)) {
-        //     $this->total += $this->invoice->custom_value2;
-        // }
-
-        // if (is_numeric($this->invoice->custom_value3)) {
-        //     $this->total += $this->invoice->custom_value3;
-        // }
-
-        // if (is_numeric($this->invoice->custom_value4)) {
-        //     $this->total += $this->invoice->custom_value4;
-        // }
 
         return $this;
     }
@@ -224,11 +208,19 @@ class InvoiceSum
         return $this->invoice;
     }
 
+    public function getPurchaseOrder()
+    {
+        $this->setCalculatedAttributes();
+        $this->invoice->saveQuietly();
+
+        return $this->invoice;
+    }
+
     public function getRecurringInvoice()
     {
-        $this->invoice->amount = $this->formatValue($this->getTotal(), $this->invoice->client->currency()->precision);
+        $this->invoice->amount = $this->formatValue($this->getTotal(), $this->precision);
         $this->invoice->total_taxes = $this->getTotalTaxes();
-        $this->invoice->balance = $this->formatValue($this->getTotal(), $this->invoice->client->currency()->precision);
+        $this->invoice->balance = $this->formatValue($this->getTotal(), $this->precision);
 
         $this->invoice->saveQuietly();
 
@@ -247,13 +239,13 @@ class InvoiceSum
             if ($this->invoice->amount != $this->invoice->balance) {
                 $paid_to_date = $this->invoice->amount - $this->invoice->balance;
 
-                $this->invoice->balance = $this->formatValue($this->getTotal(), $this->invoice->client->currency()->precision) - $paid_to_date;
+                $this->invoice->balance = $this->formatValue($this->getTotal(), $this->precision) - $paid_to_date;
             } else {
-                $this->invoice->balance = $this->formatValue($this->getTotal(), $this->invoice->client->currency()->precision);
+                $this->invoice->balance = $this->formatValue($this->getTotal(), $this->precision);
             }
         }
         /* Set new calculated total */
-        $this->invoice->amount = $this->formatValue($this->getTotal(), $this->invoice->client->currency()->precision);
+        $this->invoice->amount = $this->formatValue($this->getTotal(), $this->precision);
 
         $this->invoice->total_taxes = $this->getTotalTaxes();
 

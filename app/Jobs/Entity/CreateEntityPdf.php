@@ -1,11 +1,11 @@
 <?php
 
 /**
- * Entity Ninja (https://entityninja.com).
+ * Invoice Ninja (https://entityninja.com).
  *
- * @link https://github.com/entityninja/entityninja source repository
+ * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Entity Ninja LLC (https://entityninja.com)
+ * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -70,7 +70,7 @@ class CreateEntityPdf implements ShouldQueue
      *
      * @param $invitation
      */
-    public function __construct($invitation, $disk = 'public')
+    public function __construct($invitation, $disk = null)
     {
         $this->invitation = $invitation;
 
@@ -99,7 +99,7 @@ class CreateEntityPdf implements ShouldQueue
         $this->client = $invitation->contact->client;
         $this->client->load('company');
         
-        $this->disk = Ninja::isHosted() ? config('filesystems.default') : $disk;
+        $this->disk = $disk ?? config('filesystems.default');
 
     }
 
