@@ -6,7 +6,7 @@
  *
  * @copyright Copyright (c) 2021. Invoice Ninja LLC (https://invoiceninja.com)
  *
- * @license https://opensource.org/licenses/AAL
+ * @license https://www.elastic.co/licensing/elastic-license 
  */
 namespace Tests\Feature;
 
@@ -46,6 +46,31 @@ class PreviewTest extends TestCase
 
         $response->assertStatus(200);
     }
+
+    public function testPurchaseOrderPreviewRoute()
+    {
+        $data = $this->getData();
+
+        $response = $this->withHeaders([
+                'X-API-SECRET' => config('ninja.api_secret'),
+                'X-API-TOKEN' => $this->token,
+            ])->post('/api/v1/preview/purchase_order', $data);
+
+        $response->assertStatus(200);
+    }
+
+    public function testPurchaseOrderPreviewHtmlResponse()
+    {
+        $data = $this->getData();
+
+        $response = $this->withHeaders([
+                'X-API-SECRET' => config('ninja.api_secret'),
+                'X-API-TOKEN' => $this->token,
+            ])->post('/api/v1/preview/purchase_order?html=true', $data);
+
+        $response->assertStatus(200);
+    }
+
 
     public function testPreviewHtmlResponse()
     {

@@ -24,6 +24,7 @@ Route::group(['middleware' => ['throttle:10,1','api_secret_check','email_db']], 
 });
 
 Route::group(['middleware' => ['throttle:100,1', 'api_db', 'token_auth', 'locale'], 'prefix' => 'api/v1', 'as' => 'api.'], function () {
+    Route::put('accounts/{account}', 'AccountController@update')->name('account.update');
     Route::post('check_subdomain', 'SubdomainController@index')->name('check_subdomain');
     Route::get('ping', 'PingController@index')->name('ping');
     Route::get('health_check', 'PingController@health')->name('health_check');
@@ -128,6 +129,9 @@ Route::group(['middleware' => ['throttle:100,1', 'api_db', 'token_auth', 'locale
     Route::post('preview', 'PreviewController@show')->name('preview.show');
     Route::post('live_preview', 'PreviewController@live')->name('preview.live');
 
+    Route::post('preview/purchase_order', 'PreviewPurchaseOrderController@show')->name('preview_purchase_order.show');
+    Route::post('live_preview/purchase_order', 'PreviewPurchaseOrderController@live')->name('preview_purchase_order.live');
+
     Route::resource('products', 'ProductController'); // name = (products. index / create / show / update / destroy / edit
     Route::post('products/bulk', 'ProductController@bulk')->name('products.bulk');
     Route::put('products/{product}/upload', 'ProductController@upload');
@@ -153,7 +157,7 @@ Route::group(['middleware' => ['throttle:100,1', 'api_db', 'token_auth', 'locale
     Route::post('recurring_quotes/bulk', 'RecurringQuoteController@bulk')->name('recurring_quotes.bulk');
     Route::put('recurring_quotes/{recurring_quote}/upload', 'RecurringQuoteController@upload');
 
-    Route::post('refresh', 'Auth\LoginController@refresh')->middleware('throttle:50,1');
+    Route::post('refresh', 'Auth\LoginController@refresh')->middleware('throttle:150,3');
 
     Route::post('reports/clients', 'Reports\ClientReportController');
     Route::post('reports/contacts', 'Reports\ClientContactReportController');
@@ -207,8 +211,13 @@ Route::group(['middleware' => ['throttle:100,1', 'api_db', 'token_auth', 'locale
     Route::put('vendors/{vendor}/upload', 'VendorController@upload');
 
     Route::resource('purchase_orders', 'PurchaseOrderController');
+    Route::post('purchase_orders/bulk', 'PurchaseOrderController@bulk')->name('purchase_orders.bulk');
+    Route::put('purchase_orders/{purchase_order}/upload', 'PurchaseOrderController@upload');
+
+    Route::get('purchase_orders/{purchase_order}/{action}', 'PurchaseOrderController@action')->name('purchase_orders.action');
 
     Route::get('users', 'UserController@index');
+    Route::get('users/create', 'UserController@create')->middleware('password_protected');
     Route::get('users/{user}', 'UserController@show')->middleware('password_protected');
     Route::put('users/{user}', 'UserController@update')->middleware('password_protected');
     Route::post('users', 'UserController@store')->middleware('password_protected');

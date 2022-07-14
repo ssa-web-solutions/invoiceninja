@@ -11,6 +11,7 @@
 
 namespace App\Models;
 
+use App\Models\Presenters\VendorContactPresenter;
 use App\Notifications\ClientContactResetPassword;
 use App\Utils\Traits\MakesHash;
 use Illuminate\Contracts\Translation\HasLocalePreference;
@@ -34,6 +35,8 @@ class VendorContact extends Authenticatable implements HasLocalePreference
     protected $guard = 'vendor';
 
     protected $touches = ['vendor'];
+
+    protected $presenter = VendorContactPresenter::class;
 
     /* Allow microtime timestamps */
     protected $dateFormat = 'Y-m-d H:i:s.u';
@@ -69,6 +72,24 @@ class VendorContact extends Authenticatable implements HasLocalePreference
         'is_primary',
         'vendor_id',
     ];
+
+    public function avatar()
+    {
+        if ($this->avatar) {
+            return $this->avatar;
+        }
+
+        return asset('images/svg/user.svg');
+    }
+    
+    public function setAvatarAttribute($value)
+    {
+        if (! filter_var($value, FILTER_VALIDATE_URL) && $value) {
+            $this->attributes['avatar'] = url('/').$value;
+        } else {
+            $this->attributes['avatar'] = $value;
+        }
+    }
 
     public function getEntityType()
     {
@@ -107,7 +128,7 @@ class VendorContact extends Authenticatable implements HasLocalePreference
 
     public function sendPasswordResetNotification($token)
     {
-        $this->notify(new ClientContactResetPassword($token));
+        // $this->notify(new ClientContactResetPassword($token));
     }
 
     public function preferredLocale()
@@ -115,12 +136,9 @@ class VendorContact extends Authenticatable implements HasLocalePreference
         $languages = Cache::get('languages');
 
         return $languages->filter(function ($item) {
-            return $item->id == $this->client->getSetting('language_id');
+            return $item->id == $this->company->getSetting('language_id');
         })->first()->locale;
 
-        //$lang = Language::find($this->client->getSetting('language_id'));
-
-        //return $lang->locale;
     }
 
     /**
@@ -135,5 +153,9 @@ class VendorContact extends Authenticatable implements HasLocalePreference
         return $this
             ->withTrashed()
             ->where('id', $this->decodePrimaryKey($value))->firstOrFail();
+    }
+    public function purchase_order_invitations(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(PurchaseOrderInvitation::class);
     }
 }

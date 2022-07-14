@@ -272,6 +272,12 @@
         white-space: nowrap;
       }
 
+      [data-element='product_table-product.description-td'], td {
+        min-width:100%;
+        max-width: 300px;
+        overflow-wrap: break-word; 
+      }
+
       /** Useful snippets, uncomment to enable. **/
 
       /** Hide company logo **/
@@ -320,6 +326,7 @@
                 <div class="logo-client-wrapper">
                     <img class="company-logo" src="$company.logo" alt="$company.name logo"/>
                     <div id="client-details"></div>
+                    <div id="vendor-details"></div>
                 </div>
                 <div class="table-wrapper">
                     <table id="product-table" cellspacing="0" data-ref="table"></table>
@@ -364,7 +371,8 @@ $entity_images
                 let tables = [
                     'product-table', 'task-table', 'delivery-note-table',
                     'statement-invoice-table', 'statement-payment-table', 'statement-aging-table-totals',
-                    'statement-invoice-table-totals', 'statement-payment-table-totals', 'statement-aging-table'
+                    'statement-invoice-table-totals', 'statement-payment-table-totals', 'statement-aging-table',
+                    'client-details','vendor-details'
                 ];
 
                 tables.forEach((tableIdentifier) => {
