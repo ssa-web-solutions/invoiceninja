@@ -1,0 +1,28 @@
+version: '3'
+services:
+    web-invoice-ninja:
+        image: nginx:1.19-alpine
+        restart: on-failure
+        volumes:
+            - ../:/var/www/html
+            - ./nginx/site.conf:/etc/nginx/conf.d/default.conf
+        ports:
+            - "8099:80"
+
+    php-invoice-ninja:
+        restart: on-failure
+        build:
+            context: php
+        volumes:
+            - ../:/var/www/html
+        environment:
+            PHP_IDE_CONFIG: "serverName=localhost"
+
+    db-invoice-ninja:
+        image: mariadb:latest
+        restart: on-failure
+        environment:
+            MARIADB_ROOT_PASSWORD: password
+            MARIADB_DATABASE: invoice_ninja
+        ports:
+            - "33071:3306"
