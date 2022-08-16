@@ -12,6 +12,7 @@
 namespace App\Console\Commands;
 
 use App;
+use App\DataMapper\ClientSettings;
 use App\Factory\ClientContactFactory;
 use App\Factory\VendorContactFactory;
 use App\Models\Account;
@@ -105,9 +106,9 @@ class CheckData extends Command
             config(['database.default' => $database]);
         }
 
-        $this->checkInvoiceBalances();        
+        $this->checkInvoiceBalances();    
+        $this->checkClientBalanceEdgeCases();    
         $this->checkPaidToDatesNew();
-
         $this->checkContacts();
         $this->checkVendorContacts();
         $this->checkEntityInvitations();
@@ -126,7 +127,7 @@ class CheckData extends Command
 
         $errorEmail = config('ninja.error_email');
 
-        if ($errorEmail) {
+        if (strlen($errorEmail) > 1) {
             Mail::raw($this->log, function ($message) use ($errorEmail, $database) {
                 $message->to($errorEmail)
                         ->from(config('mail.from.address'), config('mail.from.name'))
@@ -655,6 +656,39 @@ class CheckData extends Command
         $this->logMessage("{$this->wrong_paid_to_dates} clients with incorrect client balances");
     }
 
+    private function checkClientBalanceEdgeCases()
+    {
+        Client::query()
+              ->where('is_deleted',false)
+              ->where('balance', '!=', 0)
+              ->cursor()
+              ->each(function ($client){
+
+                $count = Invoice::withTrashed()
+                            ->where('client_id', $client->id)
+                            ->where('is_deleted',false)
+                            ->whereIn('status_id', [2,3])
+                            ->count();
+
+                if($count == 0){
+                    $this->logMessage("# {$client->id} # {$client->name} {$client->balance} is invalid should be 0");
+
+                    if($this->option('client_balance')){
+                        
+                        $this->logMessage("# {$client->id} " . $client->present()->name.' - '.$client->number." Fixing {$client->balance} to 0");
+
+                        $client->balance = 0;
+                        $client->save();
+
+                    }
+
+
+                }
+
+              });
+
+    }
+
     private function invoiceBalanceQuery()
     {
         $results = \DB::select( \DB::raw("
@@ -858,6 +892,45 @@ class CheckData extends Command
             }
           
         });
+    }
+
+
+    public function checkClientSettings()
+    {
+
+        if ($this->option('fix') == 'true') {
+
+            Client::query()->whereNull('settings->currency_id')->cursor()->each(function ($client){
+
+                if(is_array($client->settings) && count($client->settings) == 0)
+                {
+                    $settings = ClientSettings::defaults();
+                    $settings->currency_id = $client->company->settings->currency_id;
+                }
+                else {
+                    $settings = $client->settings;
+                    $settings->currency_id = $client->company->settings->currency_id;
+                }
+
+                $client->settings = $settings;
+                $client->save();
+
+                $this->logMessage("Fixing currency for # {$client->id}");
+
+            });
+
+
+            Client::query()->whereNull('country_id')->cursor()->each(function ($client){
+
+                $client->country_id = $client->company->settings->country_id;
+                $client->save();
+
+                $this->logMessage("Fixing country for # {$client->id}");
+
+            });
+
+        }
+
     }
 
     public function checkBalanceVsPaidStatus()

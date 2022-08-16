@@ -227,6 +227,9 @@ class Account extends BaseModel
             return false;
         }
 
+        if($this->plan_expires && Carbon::parse($this->plan_expires)->lt(now()))
+            return false;
+
         return $this->plan == 'pro' || $this->plan == 'enterprise';
     }
 
@@ -236,7 +239,10 @@ class Account extends BaseModel
             return false;
         }
 
-        return $this->plan == 'free' || is_null($this->plan);
+        if($this->plan_expires && Carbon::parse($this->plan_expires)->lt(now()))
+            return true;
+
+        return $this->plan == 'free' || is_null($this->plan) || empty($this->plan);
     }
 
     public function isEnterpriseClient()
@@ -421,7 +427,7 @@ class Account extends BaseModel
                     $nmo->company = $this->companies()->first();
                     $nmo->settings = $this->companies()->first()->settings;
                     $nmo->to_user = $this->companies()->first()->owner();
-                    NinjaMailerJob::dispatch($nmo);
+                    NinjaMailerJob::dispatch($nmo, true);
 
                     Cache::put("throttle_notified:{$this->key}", true, 60 * 24);
 
@@ -461,7 +467,7 @@ class Account extends BaseModel
                 $nmo->company = $this->companies()->first();
                 $nmo->settings = $this->companies()->first()->settings;
                 $nmo->to_user = $this->companies()->first()->owner();
-                NinjaMailerJob::dispatch($nmo);
+                NinjaMailerJob::dispatch($nmo, true);
 
                 Cache::put("gmail_credentials_notified:{$this->key}", true, 60 * 24);
 
@@ -489,6 +495,26 @@ class Account extends BaseModel
 
         return $this
             ->where('id', $this->decodePrimaryKey($value))->firstOrFail();
+    }
+
+    public function getTrialDays()
+    {
+        if($this->payment_id)
+            return 0;
+
+        $plan_expires = Carbon::parse($this->plan_expires);
+
+        if(!$this->payment_id && $plan_expires->gt(now())){
+
+            $diff = $plan_expires->diffInDays();
+            
+            if($diff > 14);
+                return 0;
+
+            return $diff;
+        }
+
+        return 0;
     }
 
 }

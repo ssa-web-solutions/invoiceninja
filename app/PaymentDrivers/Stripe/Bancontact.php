@@ -38,7 +38,7 @@ class Bancontact
     public function paymentView(array $data)
     {
         $this->stripe->init();
-        
+
         $data['gateway'] = $this->stripe;
         $data['return_url'] = $this->buildReturnUrl();
         $data['stripe_amount'] = $this->stripe->convertToStripeAmount($data['total']['amount_with_fee'], $this->stripe->client->currency()->precision, $this->stripe->client->currency());
@@ -51,7 +51,7 @@ class Bancontact
             'currency' => 'eur',
             'payment_method_types' => ['bancontact'],
             'customer' => $this->stripe->findOrCreateCustomer(),
-            'description' => $this->stripe->decodeUnicodeString(ctrans('texts.invoices') . ': ' . collect($data['invoices'])->pluck('invoice_number')),
+            'description' => $this->stripe->decodeUnicodeString(ctrans('texts.invoices').': '.collect($data['invoices'])->pluck('invoice_number')),
             'metadata' => [
                 'payment_hash' => $this->stripe->payment_hash->hash,
                 'gateway_type_id' => GatewayType::BANCONTACT,
@@ -81,7 +81,7 @@ class Bancontact
         $this->stripe->payment_hash->data = array_merge((array) $this->stripe->payment_hash->data, $request->all());
         $this->stripe->payment_hash->save();
 
-        if ($request->redirect_status == 'succeeded') {
+        if (in_array($request->redirect_status,  ['succeeded','pending'])) {
             return $this->processSuccessfulPayment($request->payment_intent);
         }
 
