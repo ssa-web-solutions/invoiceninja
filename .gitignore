@@ -14,7 +14,7 @@ Homestead.yaml
 npm-debug.log
 yarn-error.log
 local_version.txt
-.env
+/.env
 .phpunit.result.cache
 
 /resources/assets/bower
