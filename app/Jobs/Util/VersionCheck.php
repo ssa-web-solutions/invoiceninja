@@ -13,12 +13,12 @@ namespace App\Jobs\Util;
 
 use App\Models\Account;
 use App\Utils\Ninja;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Carbon\Carbon;
 
 class VersionCheck implements ShouldQueue
 {
@@ -35,22 +35,22 @@ class VersionCheck implements ShouldQueue
      */
     public function handle()
     {
-        $version_file = trim(file_get_contents(config('ninja.version_url')));
+        $version_file = trim(@file_get_contents(config('ninja.version_url')));
 
         nlog("latest version = {$version_file}");
 
-        if ($version_file) {
+        if (Ninja::isSelfHost() && $version_file) {
             Account::whereNotNull('id')->update(['latest_version' => $version_file]);
         }
 
-        if(Ninja::isSelfHost())
-        {
+        if (Ninja::isSelfHost()) {
             $account = Account::first();
 
-            if(!$account)
+            if (! $account) {
                 return;
+            }
 
-            if($account->plan == 'white_label' && $account->plan_expires && Carbon::parse($account->plan_expires)->lt(now())){
+            if ($account->plan == 'white_label' && $account->plan_expires && Carbon::parse($account->plan_expires)->lt(now())) {
                 $account->plan = null;
                 $account->plan_expires = null;
                 $account->save();

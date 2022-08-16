@@ -22,15 +22,18 @@ use App\Models\RecurringInvoiceInvitation;
 use App\Services\PdfMaker\Designs\Utilities\DesignHelpers;
 use App\Utils\Ninja;
 use App\Utils\Number;
+use App\Utils\Traits\AppSetup;
 use App\Utils\Traits\MakesDates;
 use App\Utils\transformTranslations;
 use Exception;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Cache;
 
 class HtmlEngine
 {
     use MakesDates;
-
+    use AppSetup;
+    
     public $entity;
 
     public $invitation;
@@ -109,6 +112,7 @@ class HtmlEngine
         $t->replace(Ninja::transformTranslations($this->settings));
 
         $data = [];
+        //$data['<html>'] = ['value' => '<html dir="rtl">', 'label' => ''];
         $data['$global_margin'] = ['value' => '6.35mm', 'label' => ''];
         $data['$tax'] = ['value' => '', 'label' => ctrans('texts.tax')];
         $data['$app_url'] = ['value' => $this->generateAppUrl(), 'label' => ''];
@@ -408,6 +412,9 @@ class HtmlEngine
 
         $data['$contact.last_name'] = ['value' => isset($this->contact) ? $this->contact->last_name : '', 'label' => ctrans('texts.last_name')];
 
+        $data['$portal_button'] = ['value' => '<a class="button" href="'.$this->contact->getLoginLink().'?client_hash='.$this->client->client_hash.'">'.ctrans('texts.view_client_portal').'</a>', 'label' => ctrans('view_client_portal')];
+        $data['$contact.portal_button'] = &$data['$portal_button'];
+        $data['$portalButton'] = &$data['$portal_button'];
 
         $data['$contact.custom1'] = ['value' => isset($this->contact) ? $this->contact->custom_value1 : '&nbsp;', 'label' => $this->helpers->makeCustomField($this->company->custom_fields, 'contact1')];
         $data['$contact.custom2'] = ['value' => isset($this->contact) ? $this->contact->custom_value2 : '&nbsp;', 'label' => $this->helpers->makeCustomField($this->company->custom_fields, 'contact2')];
@@ -537,10 +544,9 @@ class HtmlEngine
         /*Payment Aliases*/
         $data['$paymentLink'] = &$data['$payment_link'];
         $data['$payment_url'] = &$data['$payment_link'];
-        $data['$portalButton'] = &$data['$paymentLink'];
-
-        $data['$dir'] = ['value' => optional($this->client->language())->locale === 'ar' ? 'rtl' : 'ltr', 'label' => ''];
-        $data['$dir_text_align'] = ['value' => optional($this->client->language())->locale === 'ar' ? 'right' : 'left', 'label' => ''];
+        
+        $data['$dir'] = ['value' => in_array(optional($this->client->language())->locale, ['ar', 'he']) ? 'rtl' : 'ltr', 'label' => ''];
+        $data['$dir_text_align'] = ['value' => in_array(optional($this->client->language())->locale, ['ar', 'he']) ? 'right' : 'left', 'label' => ''];
 
         $data['$payment.date'] = ['value' => '&nbsp;', 'label' => ctrans('texts.payment_date')];
         $data['$method'] = ['value' => '&nbsp;', 'label' => ctrans('texts.method')];
@@ -641,7 +647,27 @@ class HtmlEngine
 
     private function getCountryName() :string
     {
-        $country = Country::find($this->settings->country_id);
+
+        $countries = Cache::get('countries');
+
+        if (! $countries) {
+            $this->buildCache(true);
+
+            $countries = Cache::get('countries');
+
+        }
+
+        if($countries){
+
+         
+            $country = $countries->filter(function ($item) {
+                return $item->id == $this->settings->country_id;
+            })->first();
+
+   
+        }
+        else
+            $country = Country::find($this->settings->country_id);
 
         if ($country) {
             return ctrans('texts.country_' . $country->name);

@@ -47,25 +47,19 @@ class StoreCompanyRequest extends Request
         if (isset($input['portal_mode']) && ($input['portal_mode'] == 'domain' || $input['portal_mode'] == 'iframe')) {
             $rules['portal_domain'] = 'sometimes|url';
         } else {
-           
-            if(Ninja::isHosted()){
+            if (Ninja::isHosted()) {
                 $rules['subdomain'] = ['nullable', 'regex:/^[a-zA-Z0-9][a-zA-Z0-9.-]+[a-zA-Z0-9]$/', new ValidSubdomain($this->all())];
-            }
-            else
+            } else {
                 $rules['subdomain'] = 'nullable|alpha_num';
-           
+            }
         }
 
         return $rules;
     }
 
-    protected function prepareForValidation()
+    public function prepareForValidation()
     {
         $input = $this->all();
-
-        //https not sure i should be forcing this.
-        // if(array_key_exists('portal_domain', $input) && strlen($input['portal_domain']) > 1)
-        //     $input['portal_domain'] = str_replace("http:", "https:", $input['portal_domain']);
 
         if (array_key_exists('google_analytics_url', $input)) {
             $input['google_analytics_key'] = $input['google_analytics_url'];
@@ -81,8 +75,9 @@ class StoreCompanyRequest extends Request
             }
         }
 
-        if(array_key_exists('portal_domain', $input))
+        if (array_key_exists('portal_domain', $input)) {
             $input['portal_domain'] = strtolower($input['portal_domain']);
+        }
 
         $this->replace($input);
     }
