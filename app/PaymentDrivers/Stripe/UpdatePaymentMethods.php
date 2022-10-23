@@ -70,9 +70,12 @@ class UpdatePaymentMethods
         $this->importBankAccounts($customer, $client);
     }
 
-    private function importBankAccounts($customer, $client)
+    public function importBankAccounts($customer, $client)
     {
         $sources = $customer->sources;
+
+        if(!$customer || !property_exists($sources, 'data'))
+            return;
 
         foreach ($sources->data as $method) {
             $token_exists = ClientGatewayToken::where([

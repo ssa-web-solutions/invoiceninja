@@ -24,7 +24,9 @@ class BlackListRule implements Rule
         'vusra.com',
         'fourthgenet.com',
         'arxxwalls.com',
-        'superhostforumla.com'
+        'superhostforumla.com',
+        'wnpop.com',
+        'dataservices.space',
     ];
 
     /**

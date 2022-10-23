@@ -398,7 +398,7 @@ class StripePaymentDriver extends BaseDriver
     {
         $this->init();
 
-        $params = [];
+        $params = ['usage' => 'off_session'];
         $meta = $this->stripe_connect_auth;
 
         return SetupIntent::create($params, $meta);
@@ -508,6 +508,36 @@ class StripePaymentDriver extends BaseDriver
             \Stripe\Customer::update($customer->id, $data, $this->stripe_connect_auth);
         } catch (Exception $e) {
             nlog('unable to update clients in Stripe');
+        }
+    }
+
+    public function updateCustomer()
+    {
+        if($this->client)
+        {
+
+            $customer = $this->findOrCreateCustomer();
+            //Else create a new record
+            $data['name'] = $this->client->present()->name();
+            $data['phone'] = substr($this->client->present()->phone(), 0, 20);
+
+            $data['address']['line1'] = $this->client->address1;
+            $data['address']['line2'] = $this->client->address2;
+            $data['address']['city'] = $this->client->city;
+            $data['address']['postal_code'] = $this->client->postal_code;
+            $data['address']['state'] = $this->client->state;
+            $data['address']['country'] = $this->client->country ? $this->client->country->iso_3166_2 : '';
+
+            $data['shipping']['name'] = $this->client->present()->name();
+            $data['shipping']['address']['line1'] = $this->client->shipping_address1;
+            $data['shipping']['address']['line2'] = $this->client->shipping_address2;
+            $data['shipping']['address']['city'] = $this->client->shipping_city;
+            $data['shipping']['address']['postal_code'] = $this->client->shipping_postal_code;
+            $data['shipping']['address']['state'] = $this->client->shipping_state;
+            $data['shipping']['address']['country'] = $this->client->shipping_country ? $this->client->shipping_country->iso_3166_2 : '';
+
+            \Stripe\Customer::update($customer->id, $data, $this->stripe_connect_auth);
+
         }
     }
 

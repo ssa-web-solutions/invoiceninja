@@ -41,7 +41,7 @@ class ActivityController extends BaseController
 
     /**
      * @OA\Get(
-     *      path="/api/v1/actvities",
+     *      path="/api/v1/activities",
      *      operationId="getActivities",
      *      tags={"actvities"},
      *      summary="Gets a list of actvities",
@@ -107,6 +107,7 @@ class ActivityController extends BaseController
                     'payment' => $activity->payment ? $activity->payment : '',
                     'credit' => $activity->credit ? $activity->credit : '',
                     'task' => $activity->task ? $activity->task : '',
+                    'vendor' => $activity->vendor ? $activity->vendor : '',
                 ];
 
                 return array_merge($arr, $activity->toArray());
