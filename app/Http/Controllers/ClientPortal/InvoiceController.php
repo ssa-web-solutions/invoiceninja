@@ -56,7 +56,7 @@ class InvoiceController extends Controller
     {
         set_time_limit(0);
 
-        $invoice->service()->removeUnpaidGatewayFees()->save();
+        // $invoice->service()->removeUnpaidGatewayFees()->save();
 
         $invitation = $invoice->invitations()->where('client_contact_id', auth()->guard('contact')->user()->id)->first();
 
@@ -69,6 +69,7 @@ class InvoiceController extends Controller
 
         $data = [
             'invoice' => $invoice,
+            'invitation' => $invitation ?: $invoice->invitations->first(),
             'key' => $invitation ? $invitation->key : false,
         ];
 

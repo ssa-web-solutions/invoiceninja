@@ -210,7 +210,7 @@ class RecurringInvoiceController extends BaseController
 
         event(new RecurringInvoiceWasCreated($recurring_invoice, $recurring_invoice->company, Ninja::eventVars(auth()->user() ? auth()->user()->id : null)));
 
-        return $this->itemResponse($recurring_invoice);
+        return $this->itemResponse($recurring_invoice->fresh());
     }
 
     /**
@@ -662,21 +662,21 @@ class RecurringInvoiceController extends BaseController
                 $this->recurring_invoice_repo->archive($recurring_invoice);
 
                 if (! $bulk) {
-                    return $this->listResponse($recurring_invoice);
+                    return $this->itemResponse($recurring_invoice);
                 }
                 break;
             case 'restore':
                 $this->recurring_invoice_repo->restore($recurring_invoice);
 
                 if (! $bulk) {
-                    return $this->listResponse($recurring_invoice);
+                    return $this->itemResponse($recurring_invoice);
                 }
                 break;
             case 'delete':
                 $this->recurring_invoice_repo->delete($recurring_invoice);
 
                 if (! $bulk) {
-                    return $this->listResponse($recurring_invoice);
+                    return $this->itemResponse($recurring_invoice);
                 }
                 break;
             case 'email':

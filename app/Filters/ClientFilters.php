@@ -28,9 +28,12 @@ class ClientFilters extends QueryFilters
      * @param string $name
      * @return Builder
      */
-    public function name(string $name): Builder
+    public function name(string $name = ''): Builder
     {
-        return $this->builder->where('name', 'like', '%'.$name.'%');
+        if(strlen($name) >=1)
+            return $this->builder->where('name', 'like', '%'.$name.'%');
+
+        return $this->builder;
     }
 
     /**
@@ -168,6 +171,9 @@ class ClientFilters extends QueryFilters
     {
         $sort_col = explode('|', $sort);
 
+        if($sort_col[0] == 'display_name')
+            $sort_col[0] = 'name';
+        
         return $this->builder->orderBy($sort_col[0], $sort_col[1]);
     }
 

@@ -98,6 +98,27 @@ class NinjaPlanController extends Controller
         $stripe_response = json_decode($request->input('gateway_response'));
         $customer = $gateway_driver->findOrCreateCustomer();
 
+        //27-08-2022 Ensure customer is updated appropriately
+        $update_client_object['name'] = $client->present()->name();
+        $update_client_object['phone'] = substr($client->present()->phone(), 0, 20);
+
+        $update_client_object['address']['line1'] = $client->address1 ?: '';
+        $update_client_object['address']['line2'] = $client->address2 ?: '';
+        $update_client_object['address']['city'] = $client->city ?: '';
+        $update_client_object['address']['postal_code'] = $client->postal_code ?: '';
+        $update_client_object['address']['state'] = $client->state ?: '';
+        $update_client_object['address']['country'] = $client->country ? $client->country->iso_3166_2 : '';
+
+        $update_client_object['shipping']['name'] = $client->present()->name();
+        $update_client_object['shipping']['address']['line1'] = $client->shipping_address1 ?: '';
+        $update_client_object['shipping']['address']['line2'] = $client->shipping_address2 ?: '';
+        $update_client_object['shipping']['address']['city'] = $client->shipping_city ?: '';
+        $update_client_object['shipping']['address']['postal_code'] = $client->shipping_postal_code ?: '';
+        $update_client_object['shipping']['address']['state'] = $client->shipping_state ?: '';
+        $update_client_object['shipping']['address']['country'] = $client->shipping_country ? $client->shipping_country->iso_3166_2 : '';
+
+        \Stripe\Customer::update($customer->id, $update_client_object, $gateway_driver->stripe_connect_auth);
+
         $gateway_driver->attach($stripe_response->payment_method, $customer);
         $method = $gateway_driver->getStripePaymentMethod($stripe_response->payment_method);
 
@@ -158,7 +179,7 @@ class NinjaPlanController extends Controller
                  ->queue();
 
         $ninja_company = Company::on('db-ninja-01')->find(config('ninja.ninja_default_company_id'));
-        $ninja_company->notification(new NewAccountNotification($account, $client))->ninja();
+        $ninja_company->notification(new NewAccountNotification($subscription->company->account, $client))->ninja();
 
         return $this->render('plan.trial_confirmed', $data);
     }
@@ -174,6 +195,7 @@ class NinjaPlanController extends Controller
 
     public function plan()
     {
+
         // return $this->trial();
         //harvest the current plan
         $data = [];

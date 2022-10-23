@@ -65,7 +65,7 @@ class StoreClientRequest extends Request
         /* Ensure we have a client name, and that all emails are unique*/
         //$rules['name'] = 'required|min:1';
         $rules['settings'] = new ValidClientGroupSettingsRule();
-        $rules['contacts'] = 'array';
+        $rules['contacts'] = 'bail|array';
         $rules['contacts.*.email'] = 'bail|nullable|distinct|sometimes|email';
         $rules['contacts.*.password'] = [
             'bail',
@@ -156,6 +156,10 @@ class StoreClientRequest extends Request
         /* If there is a client number, just unset it here. */
         if (array_key_exists('number', $input) && (is_null($input['number']) || empty($input['number']))) {
             unset($input['number']);
+        }
+
+        if (array_key_exists('name', $input)) {
+            $input['name'] = strip_tags($input['name']);
         }
 
         $this->replace($input);

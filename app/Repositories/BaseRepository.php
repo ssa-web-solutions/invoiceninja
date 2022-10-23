@@ -304,7 +304,9 @@ class BaseRepository
 
             if (($state['finished_amount'] != $state['starting_amount']) && ($model->status_id != Invoice::STATUS_DRAFT)) {
 
-                //10-07-2022
+                //14-09-2022 log when we make changes to the invoice balance.
+                nlog("Adjustment - {$model->number} - " .$state['finished_amount']. " - " . $state['starting_amount']);
+
                 $model->service()->updateStatus()->save();
                 $model->client->service()->updateBalance(($state['finished_amount'] - $state['starting_amount']))->save();
                 $model->ledger()->updateInvoiceBalance(($state['finished_amount'] - $state['starting_amount']), "Update adjustment for invoice {$model->number}");
@@ -338,6 +340,11 @@ class BaseRepository
                 event('eloquent.created: App\Models\Credit', $model);            
             else
                 event('eloquent.updated: App\Models\Credit', $model);
+
+           if (($state['finished_amount'] != $state['starting_amount']) && ($model->status_id != Credit::STATUS_DRAFT)) {
+
+                $model->client->service()->adjustCreditBalance(($state['finished_amount'] - $state['starting_amount']))->save();
+            }
 
         }
 

@@ -264,7 +264,8 @@ trait MakesInvoiceValues
      * @return array
      */
     public function transformLineItems($items, $table_type = '$product') :array
-    {
+    {   //$start = microtime(true);
+
         $entity = $this->client ? $this->client : $this->company;
 
         $data = [];
@@ -274,6 +275,8 @@ trait MakesInvoiceValues
 
         $locale_info = localeconv();
 
+        $entity_currency = $entity->currency();
+
         foreach ($items as $key => $item) {
             if ($table_type == '$product' && $item->type_id != 1) {
                 if ($item->type_id != 4 && $item->type_id != 6 && $item->type_id != 5) {
@@ -282,9 +285,9 @@ trait MakesInvoiceValues
             }
 
             if ($table_type == '$task' && $item->type_id != 2) {
-                if ($item->type_id != 4 && $item->type_id != 5) {
+                // if ($item->type_id != 4 && $item->type_id != 5) {
                     continue;
-                }
+                // }
             }
 
             $helpers = new Helpers();
@@ -297,13 +300,13 @@ trait MakesInvoiceValues
             $data[$key][$table_type.'.notes'] = Helpers::processReservedKeywords($item->notes, $entity);
             $data[$key][$table_type.'.description'] = Helpers::processReservedKeywords($item->notes, $entity);
 
-            $data[$key][$table_type.".{$_table_type}1"] = $helpers->formatCustomFieldValue($this->company->custom_fields, "{$_table_type}1", $item->custom_value1, $entity);
-            $data[$key][$table_type.".{$_table_type}2"] = $helpers->formatCustomFieldValue($this->company->custom_fields, "{$_table_type}2", $item->custom_value2, $entity);
-            $data[$key][$table_type.".{$_table_type}3"] = $helpers->formatCustomFieldValue($this->company->custom_fields, "{$_table_type}3", $item->custom_value3, $entity);
-            $data[$key][$table_type.".{$_table_type}4"] = $helpers->formatCustomFieldValue($this->company->custom_fields, "{$_table_type}4", $item->custom_value4, $entity);
+            $data[$key][$table_type.".{$_table_type}1"] = strlen($item->custom_value1) >= 1 ? $helpers->formatCustomFieldValue($this->company->custom_fields, "{$_table_type}1", $item->custom_value1, $entity) : '';
+            $data[$key][$table_type.".{$_table_type}2"] = strlen($item->custom_value2) >= 1 ? $helpers->formatCustomFieldValue($this->company->custom_fields, "{$_table_type}2", $item->custom_value2, $entity) : '';
+            $data[$key][$table_type.".{$_table_type}3"] = strlen($item->custom_value3) >= 1 ? $helpers->formatCustomFieldValue($this->company->custom_fields, "{$_table_type}3", $item->custom_value3, $entity) : '';
+            $data[$key][$table_type.".{$_table_type}4"] = strlen($item->custom_value4) >= 1 ? $helpers->formatCustomFieldValue($this->company->custom_fields, "{$_table_type}4", $item->custom_value4, $entity) : '';
 
             if ($item->quantity > 0 || $item->cost > 0) {
-                $data[$key][$table_type.'.quantity'] = Number::formatValueNoTrailingZeroes($item->quantity, $entity->currency());
+                $data[$key][$table_type.'.quantity'] = Number::formatValueNoTrailingZeroes($item->quantity, $entity_currency);
 
                 $data[$key][$table_type.'.unit_cost'] = Number::formatMoneyNoRounding($item->cost, $entity);
 
@@ -357,6 +360,8 @@ trait MakesInvoiceValues
             $data[$key]['task_id'] = property_exists($item, 'task_id') ? $item->task_id : '';
         }
 
+        //nlog(microtime(true) - $start);
+        
         return $data;
     }
 

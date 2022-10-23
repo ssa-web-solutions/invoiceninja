@@ -26,6 +26,7 @@ class CompanySettings extends BaseSettings
     public $auto_archive_invoice = false; // @implemented
 
     public $qr_iban = ''; //@implemented
+    
     public $besr_id = ''; //@implemented
 
     public $lock_invoices = 'off'; //off,when_sent,when_paid //@implemented
@@ -436,9 +437,12 @@ class CompanySettings extends BaseSettings
 
     public $auto_archive_invoice_cancelled = false;
 
-    public $vendor_portal_enable_uploads=false;
+    public $vendor_portal_enable_uploads = false;
+
+    public $send_email_on_mark_paid = false;
 
     public static $casts = [
+        'send_email_on_mark_paid'            => 'bool',
         'vendor_portal_enable_uploads'       => 'bool',
         'besr_id'                            => 'string',
         'qr_iban'                            => 'string',
@@ -724,7 +728,6 @@ class CompanySettings extends BaseSettings
      */
     public static function defaults(): stdClass
     {
-        $config = json_decode(config('ninja.settings'));
 
         $data = (object) get_class_vars(self::class);
 
