@@ -68,7 +68,7 @@
         "league/omnipay": "^3.1",
         "livewire/livewire": "^2.10",
         "microsoft/microsoft-graph": "^1.69",
-        "mercadopago/dx-php": "^2.4",
+        "mercadopago/dx-php": "^2.5",
         "mollie/mollie-api-php": "^2.36",
         "nelexa/zip": "^4.0",
         "nwidart/laravel-modules": "8.3",
