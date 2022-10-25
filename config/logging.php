@@ -82,12 +82,12 @@ return [
             'url' => env('LOG_SLACK_WEBHOOK_URL'),
             'username' => 'Laravel Log',
             'emoji' => ':boom:',
-            'level' => env('LOG_LEVEL', 'critical'),
+            'level' => env('SLACK_LOG_LEVEL', 'error'),
         ],
 
         'papertrail' => [
             'driver' => 'monolog',
-            'level' => env('LOG_LEVEL', 'debug'),
+            'level' => env('PAPERTRAIL_LOG_LEVEL', 'debug'),
             'handler' => env('LOG_PAPERTRAIL_HANDLER', SyslogUdpHandler::class),
             'handler_with' => [
                 'host' => env('PAPERTRAIL_URL'),
