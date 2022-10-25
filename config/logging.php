@@ -60,7 +60,7 @@ return [
 
         'stack' => [
             'driver' => 'stack',
-            'channels' => ['single'],
+            'channels' => ['daily', 'papertrail', 'slack'],
             'ignore_exceptions' => false,
         ],
 
