@@ -30,7 +30,7 @@ use Faker\Factory;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 
-class SendTestEmails extends Command
+class SendRenewalInvoices extends Command
 {
     /**
      * The name and signature of the console command.
