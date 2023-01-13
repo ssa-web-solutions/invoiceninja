@@ -108,6 +108,11 @@ class ActivityController extends BaseController
                     'credit' => $activity->credit ? $activity->credit : '',
                     'task' => $activity->task ? $activity->task : '',
                     'vendor' => $activity->vendor ? $activity->vendor : '',
+                    'vendor_contact' => $activity->vendor_contact ? $activity->vendor_contact : '',
+                    'purchase_order' => $activity->purchase_order ? $activity->purchase_order : '',
+                    'subscription' => $activity->subscription ? $activity->subscription : '',
+                    'vendor_contact' => $activity->vendor_contact ? $activity->vendor_contact : '',
+                    'recurring_expense' => $activity->recurring_expense ? $activity->recurring_expense : '',
                 ];
 
                 return array_merge($arr, $activity->toArray());
@@ -180,9 +185,7 @@ class ActivityController extends BaseController
             } else {
                 $html_backup = file_get_contents(Storage::disk(config('filesystems.default'))->path($backup->filename));
             }
-        } elseif ($backup && $backup->html_backup) { //db
-            $html_backup = $backup->html_backup;
-        } elseif (! $backup || ! $backup->html_backup) { //failed
+        } else { //failed
             return response()->json(['message'=> ctrans('texts.no_backup_exists'), 'errors' => new stdClass], 404);
         }
 

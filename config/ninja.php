@@ -14,8 +14,8 @@ return [
     'require_https' => env('REQUIRE_HTTPS', true),
     'app_url' => rtrim(env('APP_URL', ''), '/'),
     'app_domain' => env('APP_DOMAIN', 'invoicing.co'),
-    'app_version' => '5.5.33',
-    'app_tag' => '5.5.33',
+    'app_version' => '5.5.54',
+    'app_tag' => '5.5.54',
     'minimum_client_version' => '5.0.16',
     'terms_version' => '1.0.1',
     'api_secret' => env('API_SECRET', ''),
@@ -38,12 +38,15 @@ return [
     'trusted_proxies' => env('TRUSTED_PROXIES', false),
     'is_docker' => env('IS_DOCKER', false),
     'local_download' => env('LOCAL_DOWNLOAD', false),
-    'sentry_dsn' => env('SENTRY_LARAVEL_DSN', 'https://39389664f3f14969b4c43dadda00a40b@sentry2.invoicing.co/5'),
+    'sentry_dsn' => env('SENTRY_LARAVEL_DSN', null),
     'environment' => env('NINJA_ENVIRONMENT', 'selfhost'), // 'hosted', 'development', 'selfhost', 'reseller'
     'preconfigured_install' => env('PRECONFIGURED_INSTALL', false),
     'update_secret' => env('UPDATE_SECRET', ''),
     // Settings used by invoiceninja.com
-
+    'disks' => [
+        'backup' => env('BACKUP_DISK', 's3'),
+        'document' => env('DOCUMENT_DISK', 's3'),
+    ],
     'terms_of_service_url' => [
         'hosted' => env('TERMS_OF_SERVICE_URL', 'https://www.invoiceninja.com/terms/'),
         'selfhost' => env('TERMS_OF_SERVICE_URL', 'https://www.invoiceninja.com/self-hosting-terms-service/'),
@@ -187,7 +190,8 @@ return [
     'ninja_stripe_client_id' => env('NINJA_STRIPE_CLIENT_ID', null),
     'ninja_default_company_id' => env('NINJA_COMPANY_ID', null),
     'ninja_default_company_gateway_id' => env('NINJA_COMPANY_GATEWAY_ID', null),
-    'ninja_hosted_secret' => env('NINJA_HOSTED_SECRET', null),
+    'ninja_hosted_secret' => env('NINJA_HOSTED_SECRET', ''),
+    'ninja_hosted_header' =>env('NINJA_HEADER',''),
     'internal_queue_enabled' => env('INTERNAL_QUEUE_ENABLED', true),
     'ninja_apple_api_key' => env('APPLE_API_KEY', false),
     'ninja_apple_private_key' => env('APPLE_PRIVATE_KEY', false),

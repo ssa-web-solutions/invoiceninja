@@ -75,9 +75,9 @@
         "omnipay/paypal": "^3.0",
         "payfast/payfast-php-sdk": "^1.1",
         "pragmarx/google2fa": "^8.0",
-        "predis/predis": "^1.1",
+        "turbo124/predis": "^1.1",
         "razorpay/razorpay": "2.*",
-        "sentry/sentry-laravel": "^2",
+        "sentry/sentry-laravel": "^3",
         "setasign/fpdf": "^1.8",
         "setasign/fpdi": "^2.3",
         "socialiteproviders/apple": "^5.2",
@@ -134,7 +134,7 @@
     },
     "scripts": {
         "post-install-cmd": [
-            "if [ \"${IS_DOCKER:-false}\" != \"true\" ]; then /RunCloud/Packages/php81rc/bin/php vendor/bin/snappdf download; fi"
+            "if [ \"${IS_DOCKER:-false}\" != \"true\" ]; then php vendor/bin/snappdf download; fi"
         ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"

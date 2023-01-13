@@ -27,7 +27,7 @@
                             {{ ctrans('texts.next_send_date') }}
                         </dt>
                         <dd class="mt-1 text-sm leading-5 text-gray-900 sm:mt-0 sm:col-span-2">
-                            {{ $invoice->translateDate($invoice->next_send_date, $invoice->client->date_format(), $invoice->client->locale()) }}
+                            {{ $invoice->translateDate(\Carbon\Carbon::parse($invoice->next_send_date)->subSeconds($invoice->client->timezone_offset()), $invoice->client->date_format(), $invoice->client->locale()) }}
                         </dd>
                     </div>
                     <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
@@ -94,7 +94,7 @@
                     </div>
                     <div class="mt-5 sm:mt-0 sm:ml-6 sm:flex-shrink-0 sm:flex sm:items-center">
                         <div class="inline-flex rounded-md shadow-sm" x-data="{ open: false }">
-                            <button class="button button-danger" translate @click="open = true">Request Cancellation
+                            <button class="button button-danger" translate @click="open = true">{{ ctrans('texts.request_cancellation') }}
                             </button>
                             @include('portal.ninja2020.recurring_invoices.includes.modals.cancellation')
                         </div>

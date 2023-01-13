@@ -118,7 +118,9 @@ class CheckData extends Command
         $this->checkBalanceVsPaidStatus();
         $this->checkDuplicateRecurringInvoices();
         $this->checkOauthSanity();
-
+        $this->checkVendorSettings();
+        $this->checkClientSettings();
+        
         if(Ninja::isHosted()){
             $this->checkAccountStatuses();
             $this->checkNinjaPortalUrls();
@@ -951,24 +953,24 @@ class CheckData extends Command
 
         if ($this->option('fix') == 'true') {
 
-            Client::query()->whereNull('settings->currency_id')->cursor()->each(function ($client){
+            // Client::query()->whereNull('settings->currency_id')->cursor()->each(function ($client){
 
-                if(is_array($client->settings) && count($client->settings) == 0)
-                {
-                    $settings = ClientSettings::defaults();
-                    $settings->currency_id = $client->company->settings->currency_id;
-                }
-                else {
-                    $settings = $client->settings;
-                    $settings->currency_id = $client->company->settings->currency_id;
-                }
+            //     if(is_array($client->settings) && count($client->settings) == 0)
+            //     {
+            //         $settings = ClientSettings::defaults();
+            //         $settings->currency_id = $client->company->settings->currency_id;
+            //     }
+            //     else {
+            //         $settings = $client->settings;
+            //         $settings->currency_id = $client->company->settings->currency_id;
+            //     }
 
-                $client->settings = $settings;
-                $client->save();
+            //     $client->settings = $settings;
+            //     $client->save();
 
-                $this->logMessage("Fixing currency for # {$client->id}");
+            //     $this->logMessage("Fixing currency for # {$client->id}");
 
-            });
+            // });
 
 
             Client::query()->whereNull('country_id')->cursor()->each(function ($client){
@@ -983,6 +985,27 @@ class CheckData extends Command
         }
 
     }
+
+    public function checkVendorSettings()
+    {
+
+        if ($this->option('fix') == 'true') 
+        {
+
+            Vendor::query()->whereNull('currency_id')->orWhere('currency_id', '')->cursor()->each(function ($vendor){
+
+                $vendor->currency_id = $vendor->company->settings->currency_id;
+                $vendor->save();
+
+                $this->logMessage("Fixing vendor currency for # {$vendor->id}");
+
+            });
+
+        }
+
+    }
+
+
 
     public function checkBalanceVsPaidStatus()
     {
@@ -1047,6 +1070,29 @@ class CheckData extends Command
                 $cu->save();
 
                 $this->logMessage("Fixing - {$ninja_portal_url}");
+            }
+            else{
+
+                $c =  Client::on('db-ninja-01')->where("company_id", config('ninja.ninja_default_company_id'))->where('custom_value2', $cu->account->key)->first();
+
+                    if($c)
+                    {
+
+                      $cc = $c->contacts()->first();
+                      
+                      if($cc)
+                      {
+                        $ninja_portal_url = "https://invoiceninja.invoicing.co/client/ninja/{$cc->contact_key}/{$cu->account->key}";
+
+                        $cu->ninja_portal_url = $ninja_portal_url;
+                        $cu->save();
+
+                        $this->logMessage("Fixing - {$ninja_portal_url}");
+
+                      }
+
+                    }
+
             }
 
         });

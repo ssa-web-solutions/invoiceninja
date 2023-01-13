@@ -22,6 +22,14 @@ class UpdateCompanyRequest extends Request
 {
     use MakesHash;
 
+    private array $protected_input = [
+        'client_portal_privacy_policy',
+        'client_portal_terms',
+        'portal_custom_footer',
+        'portal_custom_css',
+        'portal_custom_head'
+    ];
+
     /**
      * Determine if the user is authorized to make this request.
      *
@@ -44,6 +52,8 @@ class UpdateCompanyRequest extends Request
         $rules['size_id'] = 'integer|nullable';
         $rules['country_id'] = 'integer|nullable';
         $rules['work_email'] = 'email|nullable';
+        $rules['matomo_id'] = 'nullable|integer';
+        
         // $rules['client_registration_fields'] = 'array';
 
         if (isset($input['portal_mode']) && ($input['portal_mode'] == 'domain' || $input['portal_mode'] == 'iframe')) {
@@ -64,9 +74,9 @@ class UpdateCompanyRequest extends Request
     
         $input = $this->all();
 
-        if (Ninja::isHosted() && array_key_exists('portal_domain', $input) && strlen($input['portal_domain']) > 1) {
+        if (array_key_exists('portal_domain', $input) && strlen($input['portal_domain']) > 1) {
             $input['portal_domain'] = $this->addScheme($input['portal_domain']);
-            $input['portal_domain'] = strtolower($input['portal_domain']);
+            $input['portal_domain'] = rtrim(strtolower($input['portal_domain']), "/");
         }
 
         if (array_key_exists('settings', $input)) {
@@ -90,6 +100,17 @@ class UpdateCompanyRequest extends Request
     {
         $account = $this->company->account;
 
+        if(Ninja::isHosted())
+        {
+            foreach($this->protected_input as $protected_var)
+            {
+                $settings[$protected_var] = str_replace("script", "", $settings[$protected_var]);
+            }
+        }
+
+        if(isset($settings['email_style_custom']))
+            $settings['email_style_custom'] = str_replace(['{{','}}'], ['',''], $settings['email_style_custom']);
+
         if (! $account->isFreeHostedClient()) {
             return $settings;
         }
@@ -107,9 +128,11 @@ class UpdateCompanyRequest extends Request
 
     private function addScheme($url, $scheme = 'https://')
     {
-        $url = str_replace('http://', '', $url);
-
-        $url = parse_url($url, PHP_URL_SCHEME) === null ? $scheme.$url : $url;
+        if(Ninja::isHosted())
+        {
+            $url = str_replace('http://', '', $url);
+            $url = parse_url($url, PHP_URL_SCHEME) === null ? $scheme.$url : $url;
+        }
 
         return rtrim($url, '/');
     }

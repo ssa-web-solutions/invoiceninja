@@ -127,7 +127,7 @@ class CreatePurchaseOrderPdf implements ShouldQueue
         $t->replace(Ninja::transformTranslations($this->company->settings));
 
         if (config('ninja.phantomjs_pdf_generation') || config('ninja.pdf_generator') == 'phantom') {
-            return (new Phantom)->generate($this->invitation);
+            return (new Phantom)->generate($this->invitation, true);
         }
 
         $entity_design_id = '';
@@ -213,6 +213,9 @@ class CreatePurchaseOrderPdf implements ShouldQueue
             info($maker->getCompiledHTML());
         }
 
+        $maker = null;
+        $state = null;
+        
         return $pdf;
 
     }

@@ -187,7 +187,7 @@ class BaseRepository
         if(!$model->id){
             $this->new_model = true;
 
-            if(is_array($model->line_items))
+            if(is_array($model->line_items) && !($model instanceof RecurringInvoice))
             {                
                 $model->line_items = (collect($model->line_items))->map(function ($item) use($model,$client) {
 
@@ -280,7 +280,7 @@ class BaseRepository
         $model = $model->service()->applyNumber()->save();
 
         /* Handle attempts where the deposit is greater than the amount/balance of the invoice */
-        if((int)$model->balance != 0 && $model->partial > $model->amount)
+        if((int)$model->balance != 0 && $model->partial > $model->amount && $model->amount > 0)
             $model->partial = min($model->amount, $model->balance);
 
         /* Update product details if necessary - if we are inside a transaction - do nothing */
@@ -292,9 +292,6 @@ class BaseRepository
 
             if (($state['finished_amount'] != $state['starting_amount']) && ($model->status_id != Invoice::STATUS_DRAFT)) {
 
-                //14-09-2022 log when we make changes to the invoice balance.
-                nlog("Adjustment - {$model->number} - " .$state['finished_amount']. " - " . $state['starting_amount']);
-
                 $model->service()->updateStatus()->save();
                 $model->client->service()->updateBalance(($state['finished_amount'] - $state['starting_amount']))->save();
                 $model->ledger()->updateInvoiceBalance(($state['finished_amount'] - $state['starting_amount']), "Update adjustment for invoice {$model->number}");
@@ -304,8 +301,9 @@ class BaseRepository
             if (! $model->design_id) 
                 $model->design_id = $this->decodePrimaryKey($client->getSetting('invoice_design_id'));
 
-            //links tasks and expenses back to the invoice.
-            $model->service()->linkEntities()->save();
+            //links tasks and expenses back to the invoice, but only if we are not in the middle of a transaction.
+            if (\DB::transactionLevel() == 0) 
+                $model->service()->linkEntities()->save();
 
             if($this->new_model)
                 event('eloquent.created: App\Models\Invoice', $model);

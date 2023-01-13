@@ -26,16 +26,19 @@ use App\Jobs\Company\CreateCompanyTaskStatuses;
 use App\Models\Account;
 use App\Models\BankIntegration;
 use App\Models\BankTransaction;
+use App\Models\BankTransactionRule;
 use App\Models\Client;
 use App\Models\ClientContact;
 use App\Models\Company;
 use App\Models\CompanyGateway;
 use App\Models\CompanyToken;
+use App\Models\Credit;
 use App\Models\CreditInvitation;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\GroupSetting;
 use App\Models\InvoiceInvitation;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\PurchaseOrder;
@@ -106,6 +109,11 @@ trait MockAccountData
     /**
      * @var
      */
+    public $credit;
+
+    /**
+     * @var
+     */
     public $invoice;
 
     /**
@@ -153,6 +161,17 @@ trait MockAccountData
      */
     public $bank_transaction;
     
+    /**
+     * @var
+     */
+    public $bank_transaction_rule;
+
+
+    /**
+     * @var
+     */
+    public $payment;
+
     /**
      * @var
      */
@@ -290,6 +309,13 @@ trait MockAccountData
             'company_id' => $this->company->id,
             'is_primary' => 1,
             'send_email' => true,
+        ]);
+
+        $this->payment = Payment::factory()->create([
+            'user_id' => $user_id,
+            'client_id' => $this->client->id,
+            'company_id' => $this->company->id,
+            'amount' => 10,
         ]);
 
         $contact2 = ClientContact::factory()->create([
@@ -457,6 +483,49 @@ trait MockAccountData
 
         $this->quote->save();
 
+
+        $this->credit = Credit::factory()->create([
+            'user_id' => $user_id,
+            'client_id' => $this->client->id,
+            'company_id' => $this->company->id,
+        ]);
+
+        $this->credit->line_items = $this->buildLineItems();
+        $this->credit->uses_inclusive_taxes = false;
+
+        $this->credit->save();
+
+        $this->credit_calc = new InvoiceSum($this->credit);
+        $this->credit_calc->build();
+
+        $this->credit = $this->credit_calc->getCredit();
+
+        $this->credit->status_id = Quote::STATUS_SENT;
+        $this->credit->number = $this->getNextCreditNumber($this->client, $this->credit);
+
+
+        CreditInvitation::factory()->create([
+            'user_id' => $user_id,
+            'company_id' => $this->company->id,
+            'client_contact_id' => $contact->id,
+            'credit_id' => $this->credit->id,
+        ]);
+
+        CreditInvitation::factory()->create([
+            'user_id' => $user_id,
+            'company_id' => $this->company->id,
+            'client_contact_id' => $contact2->id,
+            'credit_id' => $this->credit->id,
+        ]);
+
+        $this->credit->setRelation('client', $this->client);
+        $this->credit->setRelation('company', $this->company);
+
+        $this->credit->save();
+
+        $this->credit->service()->createInvitations()->markSent();
+
+
         $this->purchase_order = PurchaseOrderFactory::create($this->company->id, $user_id);
         $this->purchase_order->vendor_id = $this->vendor->id;
 
@@ -570,6 +639,11 @@ trait MockAccountData
             'user_id' => $user_id,
             'company_id' => $this->company->id,
             'bank_integration_id' => $this->bank_integration->id,
+        ]);
+
+        $this->bank_transaction_rule = BankTransactionRule::factory()->create([
+            'user_id' => $user_id,
+            'company_id' => $this->company->id,
         ]);
 
         $invitations = CreditInvitation::whereCompanyId($this->credit->company_id)
