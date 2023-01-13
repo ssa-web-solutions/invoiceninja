@@ -27,6 +27,9 @@ class BlackListRule implements Rule
         'superhostforumla.com',
         'wnpop.com',
         'dataservices.space',
+        'karenkey.com',
+        'sharklasers.com',
+        '100072641.help'
     ];
 
     /**

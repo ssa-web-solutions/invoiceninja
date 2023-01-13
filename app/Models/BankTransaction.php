@@ -11,6 +11,10 @@
 
 namespace App\Models;
 
+use App\Models\BankTransactionRule;
+use App\Models\Filterable;
+use App\Models\Invoice;
+use App\Services\Bank\BankService;
 use App\Utils\Traits\MakesHash;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -18,7 +22,8 @@ class BankTransaction extends BaseModel
 {
     use SoftDeletes;
     use MakesHash;
-
+    use Filterable;
+    
     const STATUS_UNMATCHED = 1;
 
     const STATUS_MATCHED = 2;
@@ -93,6 +98,11 @@ class BankTransaction extends BaseModel
     public function account()
     {
         return $this->belongsTo(Account::class)->withTrashed();
+    }
+
+    public function service() :BankService
+    {
+        return new BankService($this);
     }
 
 }

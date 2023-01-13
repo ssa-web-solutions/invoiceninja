@@ -37,7 +37,7 @@ use App\Import\Transformer\Csv\PaymentTransformer;
 use App\Import\Transformer\Csv\ProductTransformer;
 use App\Import\Transformer\Csv\QuoteTransformer;
 use App\Import\Transformer\Csv\VendorTransformer;
-use App\Import\Transformers\Bank\BankTransformer;
+use App\Import\Transformer\Bank\BankTransformer;
 use App\Repositories\BankTransactionRepository;
 use App\Repositories\ClientRepository;
 use App\Repositories\ExpenseRepository;
@@ -46,11 +46,15 @@ use App\Repositories\PaymentRepository;
 use App\Repositories\ProductRepository;
 use App\Repositories\QuoteRepository;
 use App\Repositories\VendorRepository;
+use App\Services\Bank\BankMatchingService;
+use App\Utils\Traits\MakesHash;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\ParameterBag;
 
 class Csv extends BaseImport implements ImportInterface
 {
+    use MakesHash;
+
     public array $entity_count = [];
 
     public function import(string $entity)
@@ -77,24 +81,20 @@ class Csv extends BaseImport implements ImportInterface
 
         $data = $this->getCsvData($entity_type);
 
-        if (is_array($data)) {
+        if (is_array($data)) 
+        {
+
             $data = $this->preTransformCsv($data, $entity_type);
 
-
-            if(array_key_exists('bank_integration_id', $this->request)){
-
-                foreach($data as $key => $value)
-                {
-                    $data['bank_integration_id'][$key] = $this->request['bank_integration_id'];
-                }
-
+            foreach($data as $key => $value)
+            {
+                $data[$key]['transaction.bank_integration_id'] = $this->decodePrimaryKey($this->request['bank_integration_id']);
             }
 
         }
 
         if (empty($data)) {
             $this->entity_count['bank_transactions'] = 0;
-
             return;
         }
 
@@ -102,9 +102,15 @@ class Csv extends BaseImport implements ImportInterface
         $this->repository_name = BankTransactionRepository::class;
         $this->factory_name = BankTransactionFactory::class;
 
+        $this->repository = app()->make($this->repository_name);
+
         $this->transformer = new BankTransformer($this->company);
         $bank_transaction_count = $this->ingest($data, $entity_type);
         $this->entity_count['bank_transactions'] = $bank_transaction_count;
+        
+        nlog("bank matching co id = {$this->company->id}");
+
+        (new BankMatchingService($this->company->id, $this->company->db))->handle();
 
     }
 

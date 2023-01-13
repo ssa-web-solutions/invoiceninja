@@ -17,19 +17,20 @@ use Illuminate\Database\Eloquent\Builder;
 
 class PurchaseOrderFilters extends QueryFilters
 {
+
     /**
      * Filter based on client status.
      *
      * Statuses we need to handle
      * - all
-     * - paid
-     * - unpaid
-     * - overdue
-     * - reversed
+     * - draft
+     * - sent
+     * - accepted
+     * - cancelled
      *
      * @return Builder
      */
-    public function credit_status(string $value = '') :Builder
+    public function client_status(string $value = '') :Builder
     {
         if (strlen($value) == 0) {
             return $this->builder;
@@ -41,20 +42,27 @@ class PurchaseOrderFilters extends QueryFilters
             return $this->builder;
         }
 
+        $po_status = [];
+
         if (in_array('draft', $status_parameters)) {
-            $this->builder->where('status_id', PurchaseOrder::STATUS_DRAFT);
+            $po_status[] = PurchaseOrder::STATUS_DRAFT;
         }
 
-        if (in_array('partial', $status_parameters)) {
-            $this->builder->where('status_id', PurchaseOrder::STATUS_PARTIAL);
+        if (in_array('sent', $status_parameters)) {
+            $po_status[] = PurchaseOrder::STATUS_SENT;
         }
 
-        if (in_array('applied', $status_parameters)) {
-            $this->builder->where('status_id', PurchaseOrder::STATUS_APPLIED);
+        if (in_array('accepted', $status_parameters)) {
+            $po_status[] = PurchaseOrder::STATUS_ACCEPTED;
         }
 
-        //->where('due_date', '>', Carbon::now())
-        //->orWhere('partial_due_date', '>', Carbon::now());
+        if (in_array('cancelled', $status_parameters)) {
+            $po_status[] = PurchaseOrder::STATUS_CANCELLED;
+        }
+
+        if(count($status_parameters) >=1) {
+            $this->builder->whereIn('status_id', $status_parameters);
+        }
 
         return $this->builder;
     }

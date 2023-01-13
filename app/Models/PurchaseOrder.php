@@ -79,7 +79,8 @@ class PurchaseOrder extends BaseModel
         'partial',
         'paid_to_date',
         'vendor_id',
-        'last_viewed'
+        'last_viewed',
+        'currency_id',
     ];
 
     protected $casts = [
@@ -238,7 +239,8 @@ class PurchaseOrder extends BaseModel
         return $this->belongsTo(Invoice::class);
     }
 
-    public function service()
+    /** @return PurchaseOrderService  */
+    public function service() :PurchaseOrderService
     {
         return new PurchaseOrderService($this);
     }

@@ -105,8 +105,8 @@ class ApplyPayment
 
     private function addPaymentToLedger()
     {
-        $this->payment->amount += $this->amount_applied;
-        $this->payment->applied += $this->amount_applied;
+        // $this->payment->amount += $this->amount_applied;
+        // $this->payment->applied += $this->amount_applied;
         $this->payment->status_id = Payment::STATUS_COMPLETED;
         $this->payment->currency_id = $this->credit->client->getSetting('currency_id');
         $this->payment->save();
@@ -147,7 +147,7 @@ class ApplyPayment
         event(new InvoiceWasUpdated($this->invoice, $this->invoice->company, Ninja::eventVars(auth()->user() ? auth()->user()->id : null)));
 
         if ((int) $this->invoice->balance == 0) {
-            $this->invoice->service()->deletePdf();
+            $this->invoice->service()->touchPdf();
             $this->invoice = $this->invoice->fresh();
             event(new InvoiceWasPaid($this->invoice, $this->payment, $this->payment->company, Ninja::eventVars(auth()->user() ? auth()->user()->id : null)));
         }

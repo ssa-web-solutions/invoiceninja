@@ -52,11 +52,9 @@ class InvoiceController extends Controller
      *
      * @return Factory|View
      */
-    public function show(ShowInvoiceRequest $request, Invoice $invoice)
+    public function show(ShowInvoiceRequest $request, Invoice $invoice, ?string $hash = null)
     {
         set_time_limit(0);
-
-        // $invoice->service()->removeUnpaidGatewayFees()->save();
 
         $invitation = $invoice->invitations()->where('client_contact_id', auth()->guard('contact')->user()->id)->first();
 
@@ -71,6 +69,7 @@ class InvoiceController extends Controller
             'invoice' => $invoice,
             'invitation' => $invitation ?: $invoice->invitations->first(),
             'key' => $invitation ? $invitation->key : false,
+            'hash' => $hash,
         ];
 
         if ($request->query('mode') === 'fullscreen') {

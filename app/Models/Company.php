@@ -13,6 +13,7 @@ namespace App\Models;
 
 use App\DataMapper\CompanySettings;
 use App\Models\BankTransaction;
+use App\Models\BankTransactionRule;
 use App\Models\Language;
 use App\Models\Presenters\CompanyPresenter;
 use App\Models\PurchaseOrder;
@@ -96,6 +97,8 @@ class Company extends BaseModel
         'first_month_of_year',
         'slack_webhook_url',
         'google_analytics_key',
+        'matomo_url',
+        'matomo_id',
         'client_can_register',
         'enable_shop_api',
         'invoice_task_timelog',
@@ -123,6 +126,10 @@ class Company extends BaseModel
         'enabled_expense_tax_rates',
         'invoice_task_project',
         'report_include_deleted',
+        'invoice_task_lock',
+        'convert_payment_currency',
+        'convert_expense_currency',
+        'notify_vendor_when_paid',
     ];
 
     protected $hidden = [
@@ -132,6 +139,7 @@ class Company extends BaseModel
     ];
 
     protected $casts = [
+        'is_proforma' => 'bool',
         'country_id' => 'string',
         'custom_fields' => 'object',
         'settings' => 'object',
@@ -186,6 +194,11 @@ class Company extends BaseModel
     public function bank_transactions()
     {
         return $this->hasMany(BankTransaction::class);
+    }
+
+    public function bank_transaction_rules()
+    {
+        return $this->hasMany(BankTransactionRule::class);
     }
 
     public function getCompanyIdAttribute()
@@ -432,7 +445,7 @@ class Company extends BaseModel
             return $item->id == $this->settings->language_id;
         })->first();
 
-        
+
     }
 
     public function getLocale()
@@ -540,6 +553,23 @@ class Company extends BaseModel
     {
         return $this->company_users()->withTrashed()->where('is_owner', true)->first()?->user;
     }
+
+    public function credit_rules()
+    {
+        return BankTransactionRule::query()
+                                  ->where('company_id', $this->id)
+                                  ->where('applies_to', 'CREDIT')
+                                  ->get();
+    }
+
+    public function debit_rules()
+    {
+        return BankTransactionRule::query()
+                          ->where('company_id', $this->id)
+                          ->where('applies_to', 'DEBIT')
+                          ->get();
+    }
+
 
     public function resolveRouteBinding($value, $field = null)
     {

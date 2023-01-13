@@ -413,7 +413,16 @@ class LoginController extends BaseController
 
             return $this->timeConstrainedResponse($cu);
         }
+        
+        nlog("socialite");
+        nlog($user);
+
         $name = OAuth::splitName($user->name);
+
+        if($provider == 'apple') {
+            $name[0] = request()->has('first_name') ? request()->input('first_name') : $name[0];
+            $name[1] = request()->has('last_name') ? request()->input('last_name') : $name[1];
+        }
 
         $new_account = [
             'first_name' => $name[0],
@@ -592,7 +601,10 @@ class LoginController extends BaseController
 
         $google = new Google();
 
-        $user = $google->getTokenResponse(request()->input('id_token'));
+        if(request()->has('id_token'))
+            $user = $google->getTokenResponse(request()->input('id_token'));
+        else
+            return response()->json(['message' => 'Illegal request'], 403);
 
         if (is_array($user)) {
             $query = [

@@ -12,6 +12,7 @@
 namespace App\Http\Controllers;
 
 use App\Factory\BankTransactionFactory;
+use App\Filters\BankTransactionFilters;
 use App\Helpers\Bank\Yodlee\Yodlee;
 use App\Http\Requests\BankTransaction\AdminBankTransactionRequest;
 use App\Http\Requests\BankTransaction\CreateBankTransactionRequest;
@@ -26,7 +27,7 @@ use App\Http\Requests\Import\PreImportRequest;
 use App\Jobs\Bank\MatchBankTransactions;
 use App\Models\BankTransaction;
 use App\Repositories\BankTransactionRepository;
-use App\Services\Bank\BankService;
+use App\Services\Bank\BankMatchingService;
 use App\Transformers\BankTransactionTransformer;
 use App\Utils\Traits\MakesHash;
 use Illuminate\Http\Request;
@@ -92,13 +93,13 @@ class BankTransactionController extends BaseController
      *           @OA\JsonContent(ref="#/components/schemas/Error"),
      *       ),
      *     )
-     * @param Request $request
+     * @param BankTransactionFilters $filter
      * @return Response|mixed
      */
-    public function index(Request $request)
+    public function index(BankTransactionFilters $filters)
     {
 
-        $bank_transactions = BankTransaction::query()->company();
+        $bank_transactions = BankTransaction::filter($filters);
 
         return $this->listResponse($bank_transactions);
 
@@ -480,19 +481,32 @@ class BankTransactionController extends BaseController
     {
         $action = request()->input('action');
 
-        if(!in_array($action, ['archive', 'restore', 'delete']))
+        if(!in_array($action, ['archive', 'restore', 'delete', 'convert_matched']))
             return response()->json(['message' => 'Unsupported action.'], 400);
 
         $ids = request()->input('ids');
             
         $bank_transactions = BankTransaction::withTrashed()->whereIn('id', $this->transformKeys($ids))->company()->get();
 
-        $bank_transactions->each(function ($bank_transaction, $key) use ($action) {
-            if (auth()->user()->can('edit', $bank_transaction)) {
-                $this->bank_transaction_repo->{$action}($bank_transaction);
+        if($action == 'convert_matched') //catch this action
+        {
+            if(auth()->user()->isAdmin())
+            {
+                $this->bank_transaction_repo->convert_matched($bank_transactions);
             }
-        });
+            else 
+                return;
+        }
+        else {
 
+            $bank_transactions->each(function ($bank_transaction, $key) use ($action) {
+                if (auth()->user()->can('edit', $bank_transaction)) {
+                    $this->bank_transaction_repo->{$action}($bank_transaction);
+                }
+            });
+
+        }
+        
         /* Need to understand which permission are required for the given bulk action ie. view / edit */
 
         return $this->listResponse(BankTransaction::withTrashed()->whereIn('id', $this->transformKeys($ids))->company());

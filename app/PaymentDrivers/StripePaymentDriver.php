@@ -19,6 +19,7 @@ use App\Http\Requests\Payments\PaymentWebhookRequest;
 use App\Http\Requests\Request;
 use App\Jobs\Util\SystemLogger;
 use App\Models\ClientGatewayToken;
+use App\Models\Country;
 use App\Models\GatewayType;
 use App\Models\Payment;
 use App\Models\PaymentHash;
@@ -28,8 +29,8 @@ use App\PaymentDrivers\Stripe\ACH;
 use App\PaymentDrivers\Stripe\ACSS;
 use App\PaymentDrivers\Stripe\Alipay;
 use App\PaymentDrivers\Stripe\ApplePay;
-use App\PaymentDrivers\Stripe\Bancontact;
 use App\PaymentDrivers\Stripe\BECS;
+use App\PaymentDrivers\Stripe\Bancontact;
 use App\PaymentDrivers\Stripe\BrowserPay;
 use App\PaymentDrivers\Stripe\Charge;
 use App\PaymentDrivers\Stripe\Connect\Verify;
@@ -37,15 +38,17 @@ use App\PaymentDrivers\Stripe\CreditCard;
 use App\PaymentDrivers\Stripe\EPS;
 use App\PaymentDrivers\Stripe\FPX;
 use App\PaymentDrivers\Stripe\GIROPAY;
-use App\PaymentDrivers\Stripe\iDeal;
 use App\PaymentDrivers\Stripe\ImportCustomers;
 use App\PaymentDrivers\Stripe\Jobs\PaymentIntentFailureWebhook;
+use App\PaymentDrivers\Stripe\Jobs\PaymentIntentProcessingWebhook;
 use App\PaymentDrivers\Stripe\Jobs\PaymentIntentWebhook;
+use App\PaymentDrivers\Stripe\Klarna;
 use App\PaymentDrivers\Stripe\PRZELEWY24;
 use App\PaymentDrivers\Stripe\SEPA;
 use App\PaymentDrivers\Stripe\SOFORT;
 use App\PaymentDrivers\Stripe\UpdatePaymentMethods;
 use App\PaymentDrivers\Stripe\Utilities;
+use App\PaymentDrivers\Stripe\iDeal;
 use App\Utils\Traits\MakesHash;
 use Exception;
 use Google\Service\ServiceConsumerManagement\CustomError;
@@ -97,6 +100,7 @@ class StripePaymentDriver extends BaseDriver
         GatewayType::BECS => BECS::class,
         GatewayType::ACSS => ACSS::class,
         GatewayType::FPX => FPX::class,
+        GatewayType::KLARNA => Klarna::class,
     ];
 
     const SYSTEM_LOG_TYPE = SystemLog::TYPE_STRIPE;
@@ -116,11 +120,14 @@ class StripePaymentDriver extends BaseDriver
                 throw new StripeConnectFailure('Stripe Connect has not been configured');
             }
         } else {
+
             $this->stripe = new StripeClient(
                 $this->company_gateway->getConfigField('apiKey')
             );
 
             Stripe::setApiKey($this->company_gateway->getConfigField('apiKey'));
+            Stripe::setApiVersion('2022-11-15');
+
         }
 
         return $this;
@@ -233,7 +240,21 @@ class StripePaymentDriver extends BaseDriver
             && in_array($this->client->country->iso_3166_3, ['CAN', 'USA'])) {
             $types[] = GatewayType::ACSS;
         }
-
+        if ($this->client
+            && $this->client->currency()
+            && in_array($this->client->currency()->code, ['EUR', 'DKK', 'GBP', 'NOK', 'SEK', 'AUD', 'NZD', 'CAD', 'PLN', 'CHF'])
+            && isset($this->client->country)
+            && in_array($this->client->country->iso_3166_3, ['AUT','BEL','DNK','FIN','FRA','DEU','IRL','ITA','NLD','NOR','ESP','SWE','GBR'])) {
+            $types[] = GatewayType::KLARNA;
+        }
+        if ($this->client
+            && $this->client->currency()
+            && in_array($this->client->currency()->code, ['EUR', 'DKK', 'GBP', 'NOK', 'SEK', 'AUD', 'NZD', 'CAD', 'PLN', 'CHF', 'USD'])
+            && isset($this->client->country)
+            && in_array($this->client->company->country()->getID(), ['840'])
+            && in_array($this->client->country->iso_3166_3, ['AUT','BEL','DNK','FIN','FRA','DEU','IRL','ITA','NLD','NOR','ESP','SWE','GBR','USA'])) {
+            $types[] = GatewayType::KLARNA;
+        }
         if (
             $this->client
             && isset($this->client->country)
@@ -270,6 +291,9 @@ class StripePaymentDriver extends BaseDriver
                 break;
             case GatewayType::GIROPAY:
                 return 'gateways.stripe.giropay';
+                break;
+            case GatewayType::KLARNA:
+                return 'gateways.stripe.klarna';
                 break;
             case GatewayType::IDEAL:
                 return 'gateways.stripe.ideal';
@@ -384,7 +408,7 @@ class StripePaymentDriver extends BaseDriver
 
         $meta = $this->stripe_connect_auth;
 
-        return PaymentIntent::create($data, $meta);
+        return PaymentIntent::create($data, array_merge($meta, ['idempotency_key' => uniqid("st",true)]));
     }
 
     /**
@@ -401,7 +425,7 @@ class StripePaymentDriver extends BaseDriver
         $params = ['usage' => 'off_session'];
         $meta = $this->stripe_connect_auth;
 
-        return SetupIntent::create($params, $meta);
+        return SetupIntent::create($params, array_merge($meta, ['idempotency_key' => uniqid("st",true)]));
     }
 
     /**
@@ -478,7 +502,7 @@ class StripePaymentDriver extends BaseDriver
         $data['address']['state'] = $this->client->state;
         $data['address']['country'] = $this->client->country ? $this->client->country->iso_3166_2 : '';
 
-        $customer = Customer::create($data, $this->stripe_connect_auth);
+        $customer = Customer::create($data, array_merge($this->stripe_connect_auth, ['idempotency_key' => uniqid("st",true)]));
 
         if (! $customer) {
             throw new Exception('Unable to create gateway customer');
@@ -604,18 +628,28 @@ class StripePaymentDriver extends BaseDriver
 
     public function processWebhookRequest(PaymentWebhookRequest $request)
     {
-        // Allow app to catch up with webhook request.
-        sleep(2);
+        // if($request->type === 'payment_intent.requires_action')
+        //    nlog($request->all());
+        
+        if($request->type === 'customer.source.updated') {
+            $ach = new ACH($this);
+            $ach->updateBankAccount($request->all());
+        }
+
+        if($request->type === 'payment_intent.processing') {
+            PaymentIntentProcessingWebhook::dispatch($request->data, $request->company_key, $this->company_gateway->id)->delay(now()->addSeconds(2));
+            return response()->json([], 200);
+        }
 
         //payment_intent.succeeded - this will confirm or cancel the payment
         if ($request->type === 'payment_intent.succeeded') {
-            PaymentIntentWebhook::dispatch($request->data, $request->company_key, $this->company_gateway->id)->delay(now()->addSeconds(rand(2, 10)));
+            PaymentIntentWebhook::dispatch($request->data, $request->company_key, $this->company_gateway->id)->delay(now()->addSeconds(rand(5, 10)));
 
             return response()->json([], 200);
         }
 
         if (in_array($request->type, ['payment_intent.payment_failed', 'charge.failed'])) {
-            PaymentIntentFailureWebhook::dispatch($request->data, $request->company_key, $this->company_gateway->id)->delay(now()->addSeconds(rand(2, 10)));
+            PaymentIntentFailureWebhook::dispatch($request->data, $request->company_key, $this->company_gateway->id)->delay(now()->addSeconds(rand(5, 10)));
 
             return response()->json([], 200);
         }
@@ -657,14 +691,22 @@ class StripePaymentDriver extends BaseDriver
                 ], $this->stripe_connect_auth);
 
                 if ($charge->captured) {
-                    $payment = Payment::query()
-                        ->where('transaction_reference', $transaction['payment_intent'])
-                        ->where('company_id', $request->getCompany()->id)
-                        ->where(function ($query) use ($transaction) {
-                            $query->where('transaction_reference', $transaction['payment_intent'])
-                                  ->orWhere('transaction_reference', $transaction['id']);
-                        })
-                        ->first();
+
+                    $payment = false;
+
+                    if(isset($transaction['payment_intent']))
+                    {
+                        $payment = Payment::query()
+                            ->where('transaction_reference', $transaction['payment_intent'])
+                            ->where('company_id', $request->getCompany()->id)
+                            ->first();
+                    }
+                    elseif(isset($transaction['id'])) {
+                        $payment = Payment::query()
+                            ->where('transaction_reference', $transaction['id'])
+                            ->where('company_id', $request->getCompany()->id)
+                            ->first();
+                    }
 
                     if ($payment) {
                         $payment->status_id = Payment::STATUS_COMPLETED;

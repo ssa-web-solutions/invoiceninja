@@ -83,9 +83,8 @@ class PaymentRepository extends BaseRepository {
                     if ($data['amount'] == '') {
                         $data['amount'] = array_sum(array_column($data['invoices'], 'amount'));
                     }
-
+                    
                     $client->service()->updatePaidToDate($data['amount'])->save();
-                    // $client->paid_to_date += $data['amount'];
                     $client->save();
                 }
 
@@ -209,7 +208,7 @@ class PaymentRepository extends BaseRepository {
             'metadata' => [],
         ];
 
-        TransactionLog::dispatch(TransactionEvent::PAYMENT_MADE, $transaction, $payment->company->db);
+        // TransactionLog::dispatch(TransactionEvent::PAYMENT_MADE, $transaction, $payment->company->db);
 
         return $payment->refresh();
     }

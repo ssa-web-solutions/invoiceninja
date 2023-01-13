@@ -164,7 +164,8 @@ class CompanyController extends BaseController
      */
     public function create(CreateCompanyRequest $request)
     {
-        $company = CompanyFactory::create(auth()->user()->company()->account->id);
+        $cf = new \App\Factory\CompanyFactory;
+        $company = $cf->create(auth()->user()->company()->account->id);
 
         return $this->itemResponse($company);
     }
@@ -520,7 +521,7 @@ class CompanyController extends BaseController
             $nmo->company = $other_company;
             $nmo->settings = $other_company->settings;
             $nmo->to_user = auth()->user();
-            NinjaMailerJob::dispatch($nmo, true);
+            (new NinjaMailerJob($nmo, true))->handle();
 
             $company->delete();
 

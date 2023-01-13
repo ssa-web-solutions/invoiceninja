@@ -167,7 +167,7 @@ class Import implements ShouldQueue
 
     public $tries = 1;
 
-    public $timeout = 0;
+    public $timeout = 10000000;
 
     // public $backoff = 86430;
 
@@ -188,10 +188,10 @@ class Import implements ShouldQueue
         $this->resources = $resources;
     }
 
-    public function middleware()
-    {
-        return [new WithoutOverlapping($this->company->company_key)];
-    }
+    // public function middleware()
+    // {
+    //     return [new WithoutOverlapping("only_one_migration_at_a_time_ever")];
+    // }
 
     /**
      * Execute the job.
@@ -271,7 +271,8 @@ class Import implements ShouldQueue
         }
         
         /*After a migration first some basic jobs to ensure the system is up to date*/
-        VersionCheck::dispatch();
+        if(Ninja::isSelfHost())
+            VersionCheck::dispatch();
 
         info('Completed🚀🚀🚀🚀🚀 at '.now());
 
@@ -348,6 +349,26 @@ class Import implements ShouldQueue
         }
 
         $account = $this->company->account;
+
+        /* If the user has upgraded their account, do not wipe their payment plan*/
+        if($account->isPaid() || (isset($data['plan']) && $data['plan'] == 'white_label'))
+        {
+            if(isset($data['plan']))
+                unset($data['plan']);
+            
+            if(isset($data['plan_term']))
+                unset($data['plan_term']);
+            
+            if(isset($data['plan_paid']))
+                unset($data['plan_paid']);
+            
+            if(isset($data['plan_started']))
+                unset($data['plan_started']);
+            
+            if(isset($data['plan_expires']))
+                unset($data['plan_expires']);
+        }
+
         $account->fill($data);
         $account->save();
 
@@ -575,7 +596,7 @@ class Import implements ShouldQueue
         foreach ($data as $resource) {
             $modified = $resource;
             unset($modified['id']);
-            unset($modified['password']); //cant import passwords.
+            // unset($modified['password']); //cant import passwords.
             unset($modified['confirmation_code']); //cant import passwords.
             unset($modified['oauth_user_id']);
             unset($modified['oauth_provider_id']);
@@ -587,6 +608,7 @@ class Import implements ShouldQueue
             if($modified['deleted_at'])
                 $user->deleted_at = now();
             
+            $user->password = $modified['password'];
             $user->save();
             
             $user_agent = array_key_exists('token_name', $resource) ?: request()->server('HTTP_USER_AGENT');

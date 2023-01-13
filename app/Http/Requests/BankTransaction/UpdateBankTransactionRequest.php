@@ -33,7 +33,6 @@ class UpdateBankTransactionRequest extends Request
         /* Ensure we have a client name, and that all emails are unique*/
         $rules = [
             'date' => 'bail|required|date',
-            'description' => 'bail|sometimes|string',
             'amount' => 'numeric|required',
         ];
 
@@ -45,6 +44,8 @@ class UpdateBankTransactionRequest extends Request
 
         if(isset($this->expense_id))
             $rules['expense_id'] = 'bail|required|exists:expenses,id,company_id,'.auth()->user()->company()->id.',is_deleted,0';
+
+        $rules['bank_integration_id'] = 'bail|required|exists:bank_integrations,id,company_id,'.auth()->user()->company()->id.',is_deleted,0';
 
 
         return $rules;
@@ -67,7 +68,9 @@ class UpdateBankTransactionRequest extends Request
             if(array_key_exists('ninja_category_id', $input) && strlen($input['ninja_category_id']) > 1)
                 $input['ninja_category_id'] = $this->decodePrimaryKey($input['ninja_category_id']);
 
-            if(array_key_exists('bank_integration_id', $input) && strlen($input['bank_integration_id']) > 1)
+            if(array_key_exists('bank_integration_id', $input) && $input['bank_integration_id'] == "")
+                unset($input['bank_integration_id']);
+            elseif(array_key_exists('bank_integration_id', $input) && strlen($input['bank_integration_id']) > 1)
                 $input['bank_integration_id'] = $this->decodePrimaryKey($input['bank_integration_id']);
 
         $this->replace($input);

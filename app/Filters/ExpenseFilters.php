@@ -45,6 +45,98 @@ class ExpenseFilters extends QueryFilters
     }
 
     /**
+     * Filter based on client status.
+     *
+     * Statuses we need to handle
+     * - all
+     * - logged
+     * - pending
+     * - invoiced
+     * - paid
+     * - unpaid
+     *
+     * @return Builder
+     */
+    public function client_status(string $value = '') :Builder
+    {
+        if (strlen($value) == 0) {
+            return $this->builder;
+        }
+
+        $status_parameters = explode(',', $value);
+
+        if (in_array('all', $status_parameters)) {
+            return $this->builder;
+        }
+
+        $this->builder->whereNested(function ($query) use($status_parameters){
+
+            if (in_array('logged', $status_parameters)) {
+
+                $query->orWhere(function ($query){
+                    $query->where('amount', '>', 0)
+                          ->whereNull('invoice_id')
+                          ->whereNull('payment_date');
+                });
+                
+            }
+
+            if (in_array('pending', $status_parameters)) {
+
+                $query->orWhere(function ($query){
+                    $query->where('should_be_invoiced',true)
+                          ->whereNull('invoice_id');
+                });
+                
+            }
+
+            if (in_array('invoiced', $status_parameters)) {
+
+                $query->orWhere(function ($query){
+                    $query->whereNotNull('invoice_id');
+                });
+                
+            }
+
+            if (in_array('paid', $status_parameters)) {
+
+                $query->orWhere(function ($query){
+                    $query->whereNotNull('payment_date');
+                });
+                
+            }
+
+            if (in_array('unpaid', $status_parameters)) {
+
+                $query->orWhere(function ($query){
+                    $query->whereNull('payment_date');
+                });
+                
+            }
+
+        });
+
+        // nlog($this->builder->toSql());
+
+        return $this->builder;
+    }
+
+    /**
+     * Returns a list of expenses that can be matched to bank transactions
+     */
+    public function match_transactions($value = '')
+    {
+
+        if($value == 'true')
+        {
+            return $this->builder->where('is_deleted',0)->whereNull('transaction_id');
+        }
+
+        return $this->builder;
+    }
+
+
+    /**
      * Filters the list based on the status
      * archived, active, deleted.
      *
@@ -113,9 +205,7 @@ class ExpenseFilters extends QueryFilters
         $query = DB::table('expenses')
             ->join('companies', 'companies.id', '=', 'expenses.company_id')
             ->where('expenses.company_id', '=', $company_id)
-            //->whereRaw('(expenses.name != "" or contacts.first_name != "" or contacts.last_name != "" or contacts.email != "")') // filter out buy now invoices
             ->select(
-               // DB::raw('COALESCE(expenses.currency_id, companies.currency_id) currency_id'),
                 DB::raw('COALESCE(expenses.country_id, companies.country_id) country_id'),
                 DB::raw("CONCAT(COALESCE(expense_contacts.first_name, ''), ' ', COALESCE(expense_contacts.last_name, '')) contact"),
                 'expenses.id',
@@ -149,8 +239,6 @@ class ExpenseFilters extends QueryFilters
      */
     public function entityFilter()
     {
-
-        //return $this->builder->whereCompanyId(auth()->user()->company()->id);
         return $this->builder->company();
     }
 }
