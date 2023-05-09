@@ -7,6 +7,7 @@
 
     <meta name="show-quote-terms" content="{{ $settings->show_accept_quote_terms ? true : false }}">
     <meta name="require-quote-signature" content="{{ $client->company->account->hasFeature(\App\Models\Account::FEATURE_INVOICE_SETTINGS) && $settings->require_quote_signature }}">
+    <meta name="accept-user-input" content="{{ $client->getSetting('accept_client_input_quote_approval') }}">
 
     @include('portal.ninja2020.components.no-cache')
 
@@ -108,6 +109,7 @@
     @include('portal.ninja2020.components.pdf-viewer', ['entity' => $quote, 'invitation' => $invitation])
     @include('portal.ninja2020.invoices.includes.terms', ['entities' => [$quote], 'entity_type' => ctrans('texts.quote')])
     @include('portal.ninja2020.invoices.includes.signature')
+    @include('portal.ninja2020.quotes.includes.user-input')
 @endsection
 
 @section('footer')
@@ -117,19 +119,6 @@
     <script type="text/javascript">
 
         var clipboard = new ClipboardJS('.btn');
-
-            // clipboard.on('success', function(e) {
-            //     console.info('Action:', e.action);
-            //     console.info('Text:', e.text);
-            //     console.info('Trigger:', e.trigger);
-
-            //     e.clearSelection();
-            // });
-
-            // clipboard.on('error', function(e) {
-            //     console.error('Action:', e.action);
-            //     console.error('Trigger:', e.trigger);
-            // });
 
     </script>
 @endsection

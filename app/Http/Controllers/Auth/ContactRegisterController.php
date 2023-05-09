@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -51,7 +51,6 @@ class ContactRegisterController extends Controller
 
     public function register(RegisterRequest $request)
     {
-
         $request->merge(['company' => $request->company()]);
 
         $client = $this->getClient($request->all());
@@ -70,7 +69,7 @@ class ContactRegisterController extends Controller
 
         $client->save();
 
-        if(isset($data['currency_id'])) {
+        if (isset($data['currency_id'])) {
             $settings = $client->settings;
             $settings->currency_id = isset($data['currency_id']) ? $data['currency_id'] : $data['company']->settings->currency_id;
             $client->settings = $settings;

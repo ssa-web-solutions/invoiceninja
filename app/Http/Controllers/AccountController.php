@@ -4,23 +4,24 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\Account\CreateAccountRequest;
-use App\Http\Requests\Account\UpdateAccountRequest;
-use App\Jobs\Account\CreateAccount;
 use App\Models\Account;
+use App\Libraries\MultiDB;
+use App\Utils\TruthSource;
 use App\Models\CompanyUser;
+use Illuminate\Http\Response;
+use App\Jobs\Account\CreateAccount;
 use App\Transformers\AccountTransformer;
 use App\Transformers\CompanyUserTransformer;
-use App\Utils\TruthSource;
 use Illuminate\Foundation\Bus\DispatchesJobs;
-use Illuminate\Http\Response;
+use App\Http\Requests\Account\CreateAccountRequest;
+use App\Http\Requests\Account\UpdateAccountRequest;
 
 class AccountController extends BaseController
 {
@@ -67,7 +68,6 @@ class AccountController extends BaseController
      *      tags={"signup"},
      *      summary="Attempts a new account signup",
      *      description="Attempts a new account signup and returns a CompanyUser object on success",
-     *      @OA\Parameter(ref="#/components/parameters/X-Api-Secret"),
      *      @OA\Parameter(ref="#/components/parameters/X-Requested-With"),
      *      @OA\Parameter(
      *          name="token_name",
@@ -147,15 +147,20 @@ class AccountController extends BaseController
         if (! ($account instanceof Account)) {
             return $account;
         }
+        
+        MultiDB::findAndSetDbByAccountKey($account->key);
 
-        $ct = CompanyUser::whereUserId(auth()->user()->id);
+        $cu = CompanyUser::where('user_id', $account->users()->first()->id);
+
+        $company_user = $cu->first();
 
         $truth = app()->make(TruthSource::class);
-        $truth->setCompanyUser($ct->first());
-        $truth->setUser(auth()->user());
-        $truth->setCompany($ct->first()->company);
+        $truth->setCompanyUser($company_user);
+        $truth->setUser($company_user->user);
+        $truth->setCompany($company_user->company);
+        $truth->setCompanyToken($company_user->tokens()->where('user_id', $company_user->user_id)->where('company_id', $company_user->company_id)->first());
 
-        return $this->listResponse($ct);
+        return $this->listResponse($cu);
     }
 
     public function update(UpdateAccountRequest $request, Account $account)

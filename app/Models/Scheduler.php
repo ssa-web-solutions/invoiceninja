@@ -4,24 +4,27 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
 
 namespace App\Models;
 
-use App\Services\TaskScheduler\TaskSchedulerService;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Company;
+use App\Models\BaseModel;
+use App\Models\RecurringInvoice;
+use App\Services\Scheduler\SchedulerService;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Carbon;
 
 /**
+ * App\Models\Scheduler
+ *
  * @property bool paused
  * @property bool is_deleted
  * @property \Carbon\Carbon|mixed start_from
- * @property string repeat_every
- * @property \Carbon\Carbon|mixed scheduled_run
+ * @property int frequency_id
+ * @property \Carbon\Carbon|mixed next_run
  * @property int company_id
  * @property int updated_at
  * @property int created_at
@@ -30,123 +33,165 @@ use Illuminate\Support\Carbon;
  * @property mixed company
  * @property array parameters
  * @property string action_class
+ * @property int $id
+ * @property bool $is_deleted
+ * @property int|null $created_at
+ * @property int|null $updated_at
+ * @property int|null $deleted_at
+ * @property array|null $parameters
+ * @property int $company_id
+ * @property bool $is_paused
+ * @property int|null $frequency_id
+ * @property \Illuminate\Support\Carbon|null $next_run
+ * @property \Illuminate\Support\Carbon|null $next_run_client
+ * @property int $user_id
+ * @property string $name
+ * @property string $template
+ * @property int|null $remaining_cycles
+ * @property-read \App\Models\Company $company
+ * @property-read mixed $hashed_id
+ * @method static \Illuminate\Database\Eloquent\Builder|BaseModel company()
+ * @method static \Illuminate\Database\Eloquent\Builder|BaseModel exclude($columns)
+ * @method static \Database\Factories\SchedulerFactory factory($count = null, $state = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler filter(\App\Filters\QueryFilters $filters)
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler query()
+ * @method static \Illuminate\Database\Eloquent\Builder|BaseModel scope()
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereCompanyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereFrequencyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereIsDeleted($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereIsPaused($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereNextRun($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereNextRunClient($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereParameters($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereRemainingCycles($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereTemplate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler withTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder|Scheduler withoutTrashed()
+ * @mixin \Eloquent
  */
 class Scheduler extends BaseModel
 {
-    use HasFactory, SoftDeletes;
-
+    use SoftDeletes;
+    use Filterable;
+    
     protected $fillable = [
-        'start_from',
-        'paused',
-        'repeat_every',
-        'scheduled_run',
-        'action_class',
-        'action_name',
+        'name',
+        'frequency_id',
+        'next_run',
+        'next_run_client',
+        'template',
+        'is_paused',
         'parameters',
-        'company_id',
+        'remaining_cycles',
     ];
 
     protected $casts = [
-        'start_from' => 'timestamp',
-        'scheduled_run' => 'timestamp',
+        'next_run' => 'datetime',
+        'next_run_client' => 'datetime',
         'created_at' => 'timestamp',
         'updated_at' => 'timestamp',
         'deleted_at' => 'timestamp',
-        'paused' => 'boolean',
+        'is_paused' => 'boolean',
         'is_deleted' => 'boolean',
         'parameters' => 'array',
     ];
 
-    const DAILY = 'DAY';
-
-    const WEEKLY = 'WEEK';
-
-    const BIWEEKLY = 'BIWEEKLY';
-
-    const MONTHLY = 'MONTH';
-
-    const QUARTERLY = '3MONTHS';
-
-    const ANNUALLY = 'YEAR';
-
-    const CREATE_CLIENT_REPORT = 'create_client_report';
-
-    const CREATE_CLIENT_CONTACT_REPORT = 'create_client_contact_report';
-
-    const CREATE_CREDIT_REPORT = 'create_credit_report';
-
-    const CREATE_DOCUMENT_REPORT = 'create_document_report';
-
-    const CREATE_EXPENSE_REPORT = 'create_expense_report';
-
-    const CREATE_INVOICE_ITEM_REPORT = 'create_invoice_item_report';
-
-    const CREATE_INVOICE_REPORT = 'create_invoice_report';
-
-    const CREATE_PAYMENT_REPORT = 'create_payment_report';
-
-    const CREATE_PRODUCT_REPORT = 'create_product_report';
-
-    const CREATE_PROFIT_AND_LOSS_REPORT = 'create_profit_and_loss_report';
-
-    const CREATE_QUOTE_ITEM_REPORT = 'create_quote_item_report';
-
-    const CREATE_QUOTE_REPORT = 'create_quote_report';
-
-    const CREATE_RECURRING_INVOICE_REPORT = 'create_recurring_invoice_report';
-
-    const CREATE_TASK_REPORT = 'create_task_report';
+    protected $appends = [
+        'hashed_id',
+    ];
 
     /**
      * Service entry points.
      */
-    public function service(): TaskSchedulerService
+    public function service(): SchedulerService
     {
-        return new TaskSchedulerService($this);
+        return new SchedulerService($this);
     }
 
-    public function company(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function company()
     {
         return $this->belongsTo(Company::class);
     }
-
-    public function nextScheduledDate(): ?Carbon
+    
+    /**
+     * remainingCycles
+     *
+     * @return int
+     */
+    public function remainingCycles() : int
     {
-        $offset = 0;
-
-        $entity_send_time = $this->company->settings->entity_send_time;
-
-        if ($entity_send_time != 0) {
-            $timezone = $this->company->timezone();
-
-            $offset -= $timezone->utc_offset;
-            $offset += ($entity_send_time * 3600);
-        }
-
-        /*
-        As we are firing at UTC+0 if our offset is negative it is technically firing the day before so we always need
-        to add ON a day - a day = 86400 seconds
-        */
-
-        if ($offset < 0) {
-            $offset += 86400;
-        }
-
-        switch ($this->repeat_every) {
-            case self::DAILY:
-                return Carbon::parse($this->scheduled_run)->startOfDay()->addDay()->addSeconds($offset);
-            case self::WEEKLY:
-                return Carbon::parse($this->scheduled_run)->startOfDay()->addWeek()->addSeconds($offset);
-            case self::BIWEEKLY:
-                return Carbon::parse($this->scheduled_run)->startOfDay()->addWeeks(2)->addSeconds($offset);
-            case self::MONTHLY:
-                return Carbon::parse($this->scheduled_run)->startOfDay()->addMonthNoOverflow()->addSeconds($offset);
-            case self::QUARTERLY:
-                return Carbon::parse($this->scheduled_run)->startOfDay()->addMonthsNoOverflow(3)->addSeconds($offset);
-            case self::ANNUALLY:
-                return Carbon::parse($this->scheduled_run)->startOfDay()->addYearNoOverflow()->addSeconds($offset);
-            default:
-                return null;
+        if ($this->remaining_cycles == 0) {
+            return 0;
+        } elseif ($this->remaining_cycles == -1) {
+            return -1;
+        } else {
+            return $this->remaining_cycles - 1;
         }
     }
+    
+    public function calculateNextRun()
+    {
+        if (! $this->next_run) {
+            return null;
+        }
+
+        $offset = $this->company->timezone_offset();
+
+        switch ($this->frequency_id) {
+            case RecurringInvoice::FREQUENCY_DAILY:
+                $next_run = now()->startOfDay()->addDay();
+                break;
+            case RecurringInvoice::FREQUENCY_WEEKLY:
+                $next_run = now()->startOfDay()->addWeek();
+                break;
+            case RecurringInvoice::FREQUENCY_TWO_WEEKS:
+                $next_run = now()->startOfDay()->addWeeks(2);
+                break;
+            case RecurringInvoice::FREQUENCY_FOUR_WEEKS:
+                $next_run = now()->startOfDay()->addWeeks(4);
+                break;
+            case RecurringInvoice::FREQUENCY_MONTHLY:
+                $next_run = now()->startOfDay()->addMonthNoOverflow();
+                break;
+            case RecurringInvoice::FREQUENCY_TWO_MONTHS:
+                $next_run = now()->startOfDay()->addMonthsNoOverflow(2);
+                break;
+            case RecurringInvoice::FREQUENCY_THREE_MONTHS:
+                $next_run = now()->startOfDay()->addMonthsNoOverflow(3);
+                break;
+            case RecurringInvoice::FREQUENCY_FOUR_MONTHS:
+                $next_run = now()->startOfDay()->addMonthsNoOverflow(4);
+                break;
+            case RecurringInvoice::FREQUENCY_SIX_MONTHS:
+                $next_run = now()->startOfDay()->addMonthsNoOverflow(6);
+                break;
+            case RecurringInvoice::FREQUENCY_ANNUALLY:
+                $next_run = now()->startOfDay()->addYear();
+                break;
+            case RecurringInvoice::FREQUENCY_TWO_YEARS:
+                $next_run = now()->startOfDay()->addYears(2);
+                break;
+            case RecurringInvoice::FREQUENCY_THREE_YEARS:
+                $next_run = now()->startOfDay()->addYears(3);
+                break;
+            default:
+                $next_run =  null;
+        }
+
+
+        $this->next_run_client = $next_run ?: null;
+        $this->next_run = $next_run ? $next_run->copy()->addSeconds($offset) : null;
+        $this->save();
+    }
+
+
 }

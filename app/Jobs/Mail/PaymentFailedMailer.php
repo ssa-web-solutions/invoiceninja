@@ -4,25 +4,20 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
 
 namespace App\Jobs\Mail;
 
-use App\Jobs\Mail\NinjaMailer;
-use App\Jobs\Mail\NinjaMailerJob;
-use App\Jobs\Mail\NinjaMailerObject;
 use App\Libraries\MultiDB;
 use App\Mail\Admin\ClientPaymentFailureObject;
-use App\Mail\Admin\EntityNotificationMailer;
 use App\Mail\Admin\PaymentFailureObject;
 use App\Models\Client;
 use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\PaymentHash;
-use App\Models\User;
 use App\Utils\Traits\MakesHash;
 use App\Utils\Traits\Notifications\UserNotifies;
 use Illuminate\Bus\Queueable;
@@ -70,8 +65,8 @@ class PaymentFailedMailer implements ShouldQueue
      */
     public function handle()
     {
-        if(!is_string($this->error)){
-            $this->error = "Payment failed, no reason given.";
+        if (!is_string($this->error) || strlen($this->error) <=1) {
+            $this->error = "";
         }
 
         //Set DB
@@ -84,7 +79,8 @@ class PaymentFailedMailer implements ShouldQueue
         $invoice = false;
 
         if ($this->payment_hash) {
-            $amount = array_sum(array_column($this->payment_hash->invoices(), 'amount')) + $this->payment_hash->fee_total;
+            // $amount = array_sum(array_column($this->payment_hash->invoices(), 'amount')) + $this->payment_hash->fee_total;
+            $amount =$this->payment_hash?->amount_with_fee() ?: 0;
             $invoice = Invoice::whereIn('id', $this->transformKeys(array_column($this->payment_hash->invoices(), 'invoice_id')))->withTrashed()->first();
         }
 

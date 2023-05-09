@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -44,6 +44,18 @@ class UpdateVendorRequest extends Request
         $rules['contacts.*.email'] = 'nullable|distinct';
         $rules['currency_id'] = 'bail|sometimes|exists:currencies,id';
 
+        if ($this->file('documents') && is_array($this->file('documents'))) {
+            $rules['documents.*'] = $this->file_validation;
+        } elseif ($this->file('documents')) {
+            $rules['documents'] = $this->file_validation;
+        }
+
+        if ($this->file('file') && is_array($this->file('file'))) {
+            $rules['file.*'] = $this->file_validation;
+        } elseif ($this->file('file')) {
+            $rules['file'] = $this->file_validation;
+        }
+
         return $rules;
     }
 
@@ -64,8 +76,9 @@ class UpdateVendorRequest extends Request
             $input['assigned_user_id'] = $this->decodePrimaryKey($input['assigned_user_id']);
         }
 
-        if(array_key_exists('country_id', $input) && is_null($input['country_id']))
+        if (array_key_exists('country_id', $input) && is_null($input['country_id'])) {
             unset($input['country_id']);
+        }
 
         $input = $this->decodePrimaryKeys($input);
 

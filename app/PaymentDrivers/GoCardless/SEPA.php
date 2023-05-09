@@ -5,7 +5,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -15,7 +15,6 @@ namespace App\PaymentDrivers\GoCardless;
 use App\Exceptions\PaymentFailed;
 use App\Http\Requests\ClientPortal\Payments\PaymentResponseRequest;
 use App\Jobs\Util\SystemLogger;
-use App\Models\ClientGatewayToken;
 use App\Models\GatewayType;
 use App\Models\Invoice;
 use App\Models\Payment;
@@ -63,12 +62,12 @@ class SEPA implements MethodInterface
                         'session_token' => $session_token,
                     ]),
                     'prefilled_customer' => [
-                        'given_name' => auth()->guard('contact')->user()->first_name,
-                        'family_name' => auth()->guard('contact')->user()->last_name,
-                        'email' => auth()->guard('contact')->user()->email,
-                        'address_line1' => auth()->guard('contact')->user()->client->address1,
-                        'city' => auth()->guard('contact')->user()->client->city,
-                        'postal_code' => auth()->guard('contact')->user()->client->postal_code,
+                        'given_name' => auth()->guard('contact')->user()->client->present()->first_name(),
+                        'family_name' => auth()->guard('contact')->user()->client->present()->last_name(),
+                        'email' => auth()->guard('contact')->user()->client->present()->email(),
+                        'address_line1' => auth()->guard('contact')->user()->client->address1 ?: '',
+                        'city' => auth()->guard('contact')->user()->client->city ?: '',
+                        'postal_code' => auth()->guard('contact')->user()->client->postal_code ?: '',
                     ],
                 ],
             ]);
@@ -173,10 +172,12 @@ class SEPA implements MethodInterface
             $description = "Amount {$request->amount} from client {$this->go_cardless->client->present()->name()}";
         }
 
+        $amount = $this->go_cardless->convertToGoCardlessAmount($this->go_cardless->payment_hash?->amount_with_fee(), $this->go_cardless->client->currency()->precision);
+
         try {
             $payment = $this->go_cardless->gateway->payments()->create([
                 'params' => [
-                    'amount' => $request->amount,
+                    'amount' => $amount,
                     'currency' => $request->currency,
                     'description' => $description,
                     'metadata' => [

@@ -4,19 +4,14 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
 
 namespace App\Console\Commands;
 
-use App\Libraries\MultiDB;
-use App\Models\Backup;
-use App\Models\Design;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Storage;
-use stdClass;
 
 class ReactBuilder extends Command
 {
@@ -56,8 +51,8 @@ class ReactBuilder extends Command
         $directoryIterator = new \RecursiveDirectoryIterator(public_path('react'), \RecursiveDirectoryIterator::SKIP_DOTS);
 
         foreach (new \RecursiveIteratorIterator($directoryIterator) as $file) {
-            if (str_contains($file->getFileName(), '.js')) {
-                if (str_contains($file->getFileName(), 'index.')) {
+            if ($file->getExtension() == 'js') {
+                if (str_contains($file->getFileName(), 'index-')) {
                     $includes .= '<script type="module" crossorigin src="/react/'.$file->getFileName().'"></script>'."\n";
                 } else {
                     $includes .= '<link rel="modulepreload" href="/react/'.$file->getFileName().'">'."\n";

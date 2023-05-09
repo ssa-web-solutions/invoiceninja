@@ -5,7 +5,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -93,7 +93,7 @@ trait PdfMakerUtilities
 
             if ($child['element'] !== 'script') {
                 if (array_key_exists('process_markdown', $this->data) && array_key_exists('content', $child) && $this->data['process_markdown']) {
-                    $child['content'] = str_replace('<br>', "\r", $child['content']);
+                    $child['content'] = str_replace('<br>', "\r", ($child['content'] ?? ''));
                     $child['content'] = $this->commonmark->convert($child['content'] ?? '');
                 }
             }
@@ -178,7 +178,7 @@ trait PdfMakerUtilities
         foreach ($children as $key => &$child) {
             if (isset($child['content']) && isset($child['show_empty']) && $child['show_empty'] === false) {
                 $value = strtr($child['content'], $variables['values']);
-                if ($value === '' || $value === '&nbsp;') {
+                if ($value === '' || $value === '&nbsp;' || $value === ' ') {
                     $child['is_empty'] = true;
                 }
             }

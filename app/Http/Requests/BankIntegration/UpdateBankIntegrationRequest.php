@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -32,6 +32,7 @@ class UpdateBankIntegrationRequest extends Request
     {
         /* Ensure we have a client name, and that all emails are unique*/
         $rules = [
+            'bank_account_name' => 'bail|sometimes|min:3',
             'auto_sync' => 'sometimes|bool'
         ];
 
@@ -49,5 +50,4 @@ class UpdateBankIntegrationRequest extends Request
 
         $this->replace($input);
     }
-
 }

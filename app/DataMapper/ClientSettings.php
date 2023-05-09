@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -86,6 +86,10 @@ class ClientSettings extends BaseSettings
     {
         if (! $client_settings) {
             return $company_settings;
+        }
+
+        if (is_array($client_settings)) {
+            $client_settings = (object)$client_settings;
         }
 
         foreach ($company_settings as $key => $value) {

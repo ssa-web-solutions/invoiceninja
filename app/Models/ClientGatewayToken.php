@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -12,9 +12,56 @@
 namespace App\Models;
 
 use App\Utils\Traits\MakesDates;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * App\Models\ClientGatewayToken
+ *
+ * @property int $id
+ * @property int $company_id
+ * @property int|null $client_id
+ * @property string|null $token
+ * @property string|null $routing_number
+ * @property int $company_gateway_id
+ * @property string|null $gateway_customer_reference
+ * @property int $gateway_type_id
+ * @property int $is_default
+ * @property object|null $meta
+ * @property int|null $deleted_at
+ * @property int|null $created_at
+ * @property int|null $updated_at
+ * @property int $is_deleted
+ * @property-read \App\Models\Client|null $client
+ * @property-read \App\Models\Company $company
+ * @property-read \App\Models\CompanyGateway|null $gateway
+ * @property-read \App\Models\GatewayType|null $gateway_type
+ * @property-read mixed $hashed_id
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder|BaseModel company()
+ * @method static \Illuminate\Database\Eloquent\Builder|BaseModel exclude($columns)
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken query()
+ * @method static \Illuminate\Database\Eloquent\Builder|BaseModel scope()
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken whereClientId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken whereCompanyGatewayId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken whereCompanyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken whereGatewayCustomerReference($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken whereGatewayTypeId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken whereIsDefault($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken whereIsDeleted($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken whereMeta($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken whereRoutingNumber($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken whereToken($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken withTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder|ClientGatewayToken withoutTrashed()
+ * @mixin \Eloquent
+ */
 class ClientGatewayToken extends BaseModel
 {
     use MakesDates;
@@ -68,18 +115,5 @@ class ClientGatewayToken extends BaseModel
     public function user()
     {
         return $this->belongsTo(User::class)->withTrashed();
-    }
-
-    /**
-     * Retrieve the model for a bound value.
-     *
-     * @param mixed $value
-     * @param null $field
-     * @return Model|null
-     */
-    public function resolveRouteBinding($value, $field = null)
-    {
-        return $this
-            ->where('id', $this->decodePrimaryKey($value))->firstOrFail();
     }
 }

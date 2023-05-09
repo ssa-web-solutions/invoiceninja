@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -83,6 +83,10 @@ class InvoiceRepository extends BaseRepository
      */
     public function restore($invoice) :Invoice
     {
+        if ($invoice->is_proforma) {
+            return $invoice;
+        }
+            
         //if we have just archived, only perform a soft restore
         if (! $invoice->is_deleted) {
             parent::restore($invoice);

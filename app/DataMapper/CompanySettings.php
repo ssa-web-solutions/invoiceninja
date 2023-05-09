@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -229,7 +229,7 @@ class CompanySettings extends BaseSettings
     public $require_quote_signature = false;  //@TODO ben to confirm
 
     //email settings
-    public $email_sending_method = 'default'; //enum 'default','gmail','office365' //@implemented
+    public $email_sending_method = 'default'; //enum 'default','gmail','office365' 'client_postmark', 'client_mailgun'//@implemented
 
     public $gmail_sending_user_id = '0'; //@implemented
 
@@ -383,7 +383,7 @@ class CompanySettings extends BaseSettings
 
     public $page_layout = 'portrait';
 
-    public $font_size = 7; //@implemented
+    public $font_size = 16; //@implemented
 
     public $primary_font = 'Roboto';
 
@@ -442,12 +442,54 @@ class CompanySettings extends BaseSettings
     public $send_email_on_mark_paid = false;
 
     public $postmark_secret = '';
+
+    public $custom_sending_email = '';
     
     public $mailgun_secret = '';
     
     public $mailgun_domain = '';
 
+    public $mailgun_endpoint = 'api.mailgun.net'; //api.eu.mailgun.net
+
+    public $auto_bill_standard_invoices = false;
+
+    public $email_alignment = 'center'; // center , left, right
+
+    public $show_email_footer = true;
+
+    public $company_logo_size = '';
+
+    public $show_paid_stamp = false;
+
+    public $show_shipping_address = false;
+
+    public $accept_client_input_quote_approval = false;
+
+    public $allow_billable_task_items = true;
+
+    public $show_task_item_description = false;
+
+    public $client_initiated_payments = false;
+
+    public $client_initiated_payments_minimum = 0;
+
+    public $sync_invoice_quote_columns = true;
+
     public static $casts = [
+        'mailgun_endpoint'                   => 'string',    
+        'client_initiated_payments'          => 'bool',
+        'client_initiated_payments_minimum'  => 'float',
+        'sync_invoice_quote_columns'         => 'bool',
+        'show_task_item_description'         => 'bool',
+        'allow_billable_task_items'          => 'bool',
+        'accept_client_input_quote_approval' => 'bool',
+        'custom_sending_email'               => 'string',
+        'show_paid_stamp'                    => 'bool',
+        'show_shipping_address'              => 'bool',
+        'company_logo_size'                  => 'string',
+        'show_email_footer'                  => 'bool',
+        'email_alignment'                    => 'string',
+        'auto_bill_standard_invoices'        => 'bool',
         'postmark_secret'                    => 'string',
         'mailgun_secret'                     => 'string',
         'mailgun_domain'                     => 'string',
@@ -463,7 +505,6 @@ class CompanySettings extends BaseSettings
         'purchase_order_design_id'           => 'string',
         'purchase_order_footer'              => 'string',
         'purchase_order_number_pattern'      => 'string',
-        'purchase_order_number_counter'      => 'int',
         'page_numbering_alignment'           => 'string',
         'page_numbering'                     => 'bool',
         'auto_archive_invoice_cancelled'     => 'bool',
@@ -495,7 +536,6 @@ class CompanySettings extends BaseSettings
         'reminder_send_time'                 => 'int',
         'email_sending_method'               => 'string',
         'gmail_sending_user_id'              => 'string',
-        'currency_id'                        => 'string',
         'counter_number_applied'             => 'string',
         'quote_number_applied'               => 'string',
         'email_subject_custom1'              => 'string',
@@ -724,8 +764,9 @@ class CompanySettings extends BaseSettings
      * and always ensure an up to date class is returned.
      *
      * @param $obj
+     * @deprecated
      */
-    public function __construct($obj)
+    public function __construct()
     {
         //	parent::__construct($obj);
     }
@@ -737,7 +778,6 @@ class CompanySettings extends BaseSettings
      */
     public static function defaults(): stdClass
     {
-
         $data = (object) get_class_vars(self::class);
 
         unset($data->casts);
@@ -869,6 +909,15 @@ class CompanySettings extends BaseSettings
                 '$credit.total',
             ],
             'product_columns' => [
+                '$product.item',
+                '$product.description',
+                '$product.unit_cost',
+                '$product.quantity',
+                '$product.discount',
+                '$product.tax',
+                '$product.line_total',
+            ],
+            'product_quote_columns' => [
                 '$product.item',
                 '$product.description',
                 '$product.unit_cost',

@@ -5,7 +5,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -50,7 +50,7 @@ class DocumentsTable extends Component
     {
         MultiDB::setDb($this->db);
 
-        $this->client = Client::with('company')->find($this->client_id);
+        $this->client = Client::withTrashed()->with('company')->find($this->client_id);
 
         $this->company = $this->client->company;
 
@@ -83,7 +83,7 @@ class DocumentsTable extends Component
                 break;
 
             case 'expenses':
-               // $this->query = $this->expenses();
+                // $this->query = $this->expenses();
                 break;
 
             case 'invoices':

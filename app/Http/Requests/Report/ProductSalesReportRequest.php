@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -13,7 +13,6 @@ namespace App\Http\Requests\Report;
 
 use App\Http\Requests\Request;
 use App\Utils\Traits\MakesHash;
-use Illuminate\Validation\Rule;
 
 class ProductSalesReportRequest extends Request
 {
@@ -31,14 +30,13 @@ class ProductSalesReportRequest extends Request
 
     public function rules()
     {
-
         return [
             'date_range' => 'bail|required|string',
             'end_date' => 'bail|required_if:date_range,custom|nullable|date',
             'start_date' => 'bail|required_if:date_range,custom|nullable|date',
             'report_keys' => 'bail|present|array',
             'send_email' => 'bail|required|bool',
-            'client_id' => 'bail|sometimes|exists:clients,id,company_id,'.auth()->user()->company()->id.',is_deleted,0',
+            'client_id' => 'bail|nullable|sometimes|exists:clients,id,company_id,'.auth()->user()->company()->id.',is_deleted,0',
         ];
     }
 
@@ -46,7 +44,7 @@ class ProductSalesReportRequest extends Request
     {
         $input = $this->all();
 
-        if (! array_key_exists('date_range', $input)) {
+        if (! array_key_exists('date_range', $input) || $input['date_range'] == '') {
             $input['date_range'] = 'all';
         }
 
@@ -63,8 +61,9 @@ class ProductSalesReportRequest extends Request
             $input['end_date'] = null;
         }
 
-        if(array_key_exists('client_id', $input) && strlen($input['client_id']) >=1)
+        if (array_key_exists('client_id', $input) && strlen($input['client_id']) >=1) {
             $input['client_id'] = $this->decodePrimaryKey($input['client_id']);
+        }
 
         $this->replace($input);
     }

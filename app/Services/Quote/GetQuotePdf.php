@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -15,12 +15,10 @@ use App\Jobs\Entity\CreateEntityPdf;
 use App\Models\ClientContact;
 use App\Models\Quote;
 use App\Services\AbstractService;
-use App\Utils\TempFile;
-use Illuminate\Support\Facades\Storage;
 
 class GetQuotePdf extends AbstractService
 {
-    public function __construct(Quote $quote, ClientContact $contact = null)
+    public function __construct(public Quote $quote, public ?ClientContact $contact = null)
     {
         $this->quote = $quote;
 
@@ -35,6 +33,10 @@ class GetQuotePdf extends AbstractService
 
         $invitation = $this->quote->invitations->where('client_contact_id', $this->contact->id)->first();
 
+        if (!$invitation) {
+            $invitation = $this->quote->invitations->first();
+        }
+
         $path = $this->quote->client->quote_filepath($invitation);
 
         $file_path = $path . $this->quote->numberFormatter() . '.pdf';
@@ -46,6 +48,5 @@ class GetQuotePdf extends AbstractService
         $file_path = (new CreateEntityPdf($invitation))->handle();
 
         return $file_path;
-        //return Storage::disk($disk)->path($file_path);
     }
 }

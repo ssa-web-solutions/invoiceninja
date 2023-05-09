@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -20,10 +20,8 @@ use App\Http\Requests\ClientPortal\Invoices\ShowInvoicesRequest;
 use App\Models\Invoice;
 use App\Utils\Ninja;
 use App\Utils\Number;
-use App\Utils\TempFile;
 use App\Utils\Traits\MakesDates;
 use App\Utils\Traits\MakesHash;
-use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -82,8 +80,6 @@ class InvoiceController extends Controller
     /**
      * Pay one or more invoices.
      *
-     * @param ProcessInvoicesInBulkRequest $request
-     * @return mixed
      */
     public function catch_bulk()
     {
@@ -227,7 +223,6 @@ class InvoiceController extends Controller
         $zipFile = new \PhpZip\ZipFile();
         try {
             foreach ($invoices as $invoice) {
-
                 //add it to the zip
                 $zipFile->addFromString(basename($invoice->pdf_file_path()), file_get_contents($invoice->pdf_file_path(null, 'url', true)));
             }
@@ -238,7 +233,7 @@ class InvoiceController extends Controller
             $zipFile->saveAsFile($filepath) // save the archive to a file
                    ->close(); // close archive
 
-           return response()->download($filepath, $filename)->deleteFileAfterSend(true);
+            return response()->download($filepath, $filename)->deleteFileAfterSend(true);
         } catch (\PhpZip\Exception\ZipException $e) {
             // handle exception
         } finally {
