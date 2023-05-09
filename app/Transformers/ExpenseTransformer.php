@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -87,7 +87,7 @@ class ExpenseTransformer extends EntityTransformer
             'currency_id' => (string) $expense->currency_id ?: '',
             'category_id' => $this->encodePrimaryKey($expense->category_id),
             'payment_type_id' => (string) $expense->payment_type_id ?: '',
-            'recurring_expense_id' => (string) $expense->recurring_expense_id ?: '',
+            'recurring_expense_id' => (string) $this->encodePrimaryKey($expense->recurring_expense_id) ?: '',
             'is_deleted' => (bool) $expense->is_deleted,
             'should_be_invoiced' => (bool) $expense->should_be_invoiced,
             'invoice_documents' => (bool) $expense->invoice_documents,

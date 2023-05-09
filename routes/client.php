@@ -1,20 +1,20 @@
 <?php
 
-use App\Http\Controllers\Auth\ContactForgotPasswordController;
-use App\Http\Controllers\Auth\ContactLoginController;
-use App\Http\Controllers\Auth\ContactRegisterController;
-use App\Http\Controllers\Auth\ContactResetPasswordController;
-use App\Http\Controllers\BaseController;
-use App\Http\Controllers\ClientPortal\DocumentController;
-use App\Http\Controllers\ClientPortal\PaymentMethodController;
-use App\Http\Controllers\ClientPortal\SubscriptionController;
-use App\Http\Controllers\ClientPortal\TaskController;
-use App\Http\Controllers\CreditController;
-use App\Http\Controllers\InvoiceController;
-use App\Http\Controllers\QuoteController;
-use App\Http\Controllers\RecurringInvoiceController;
 use App\Utils\PhantomJS\Phantom;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\BaseController;
+use App\Http\Controllers\QuoteController;
+use App\Http\Controllers\CreditController;
+use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\RecurringInvoiceController;
+use App\Http\Controllers\Auth\ContactLoginController;
+use App\Http\Controllers\ClientPortal\TaskController;
+use App\Http\Controllers\Auth\ContactRegisterController;
+use App\Http\Controllers\ClientPortal\PrePaymentController;
+use App\Http\Controllers\Auth\ContactResetPasswordController;
+use App\Http\Controllers\ClientPortal\SubscriptionController;
+use App\Http\Controllers\Auth\ContactForgotPasswordController;
+use App\Http\Controllers\ClientPortal\PaymentMethodController;
 
 Route::get('client', [ContactLoginController::class, 'showLoginForm'])->name('client.catchall')->middleware(['domain_db', 'contact_account','locale']); //catch all
 
@@ -45,7 +45,6 @@ Route::get('client/ninja/{contact_key}/{company_key}', [App\Http\Controllers\Cli
 Route::post('client/ninja/trial_confirmation', [App\Http\Controllers\ClientPortal\NinjaPlanController::class, 'trial_confirmation'])->name('client.trial.response')->middleware(['domain_db']);
 
 Route::group(['middleware' => ['auth:contact', 'locale', 'domain_db','check_client_existence'], 'prefix' => 'client', 'as' => 'client.'], function () {
-    
     Route::get('dashboard', [App\Http\Controllers\ClientPortal\DashboardController::class, 'index'])->name('dashboard'); // name = (dashboard. index / create / show / update / destroy / edit
 
     Route::get('plan', [App\Http\Controllers\ClientPortal\NinjaPlanController::class, 'plan'])->name('plan'); // name = (dashboard. index / create / show / update / destroy / edit
@@ -67,6 +66,9 @@ Route::group(['middleware' => ['auth:contact', 'locale', 'domain_db','check_clie
 
     Route::get('payments', [App\Http\Controllers\ClientPortal\PaymentController::class, 'index'])->name('payments.index')->middleware('portal_enabled');
     Route::get('payments/{payment}', [App\Http\Controllers\ClientPortal\PaymentController::class, 'show'])->name('payments.show');
+
+    Route::get('pre_payments', [PrePaymentController::class, 'index'])->name('pre_payments.index')->middleware('portal_enabled');
+    Route::post('pre_payments/process', [PrePaymentController::class, 'process'])->name('pre_payments.process')->middleware('portal_enabled');
 
     Route::get('profile/{client_contact}/edit', [App\Http\Controllers\ClientPortal\ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('profile/{client_contact}/edit', [App\Http\Controllers\ClientPortal\ProfileController::class, 'update'])->name('profile.update');
@@ -98,8 +100,9 @@ Route::group(['middleware' => ['auth:contact', 'locale', 'domain_db','check_clie
     Route::resource('documents', App\Http\Controllers\ClientPortal\DocumentController::class)->only(['index', 'show']);
 
     Route::get('subscriptions/{recurring_invoice}/plan_switch/{target}', [App\Http\Controllers\ClientPortal\SubscriptionPlanSwitchController::class, 'index'])->name('subscription.plan_switch');
-
-    Route::resource('subscriptions', SubscriptionController::class)->middleware('portal_enabled')->only(['index']);
+    
+    Route::get('subscriptions/{recurring_invoice}', [SubscriptionController::class, 'show'])->middleware('portal_enabled')->name('subscriptions.show');
+    Route::get('subscriptions', [SubscriptionController::class, 'index'])->middleware('portal_enabled')->name('subscriptions.index');
 
     Route::resource('tasks', TaskController::class)->only(['index']);
 
@@ -108,7 +111,6 @@ Route::group(['middleware' => ['auth:contact', 'locale', 'domain_db','check_clie
 
     Route::post('upload', App\Http\Controllers\ClientPortal\UploadController::class)->name('upload.store');
     Route::get('logout', [ContactLoginController::class, 'logout'])->name('logout');
-
 });
 
 Route::post('payments/process/response', [App\Http\Controllers\ClientPortal\PaymentController::class, 'response'])->name('client.payments.response')->middleware(['locale', 'domain_db', 'verify_hash']);
@@ -132,7 +134,6 @@ Route::group(['middleware' => ['invite_db'], 'prefix' => 'client', 'as' => 'clie
     Route::get('pay/{invitation_key}', [App\Http\Controllers\ClientPortal\InvitationController::class, 'payInvoice'])->name('pay.invoice');
 
     Route::get('unsubscribe/{entity}/{invitation_key}', [App\Http\Controllers\ClientPortal\InvitationController::class, 'unsubscribe'])->name('unsubscribe');
-
 });
 
 Route::get('phantom/{entity}/{invitation_key}', [Phantom::class, 'displayInvitation'])->middleware(['invite_db', 'phantom_secret'])->name('phantom_view');

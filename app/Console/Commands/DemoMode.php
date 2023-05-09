@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -188,6 +188,7 @@ class DemoMode extends Command
             $company_token->account_id = $account->id;
             $company_token->name = 'test token';
             $company_token->token = 'TOKEN';
+            $company_token->is_system = true;
             $company_token->save();
 
             $u2->companies()->attach($company->id, [
@@ -257,7 +258,6 @@ class DemoMode extends Command
 
     private function createClient($company, $user, $assigned_user_id = null)
     {
-
         // dispatch(function () use ($company, $user) {
 
         // });

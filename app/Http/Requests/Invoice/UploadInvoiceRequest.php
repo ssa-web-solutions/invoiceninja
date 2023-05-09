@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -12,6 +12,7 @@
 namespace App\Http\Requests\Invoice;
 
 use App\Http\Requests\Request;
+use Illuminate\Http\UploadedFile;
 
 class UploadInvoiceRequest extends Request
 {
@@ -29,14 +30,41 @@ class UploadInvoiceRequest extends Request
     {
         $rules = [];
 
-        if ($this->input('documents')) {
-            $rules['documents'] = 'file|mimes:csv,png,ai,jpeg,tiff,pdf,gif,psd,txt,doc,xls,ppt,xlsx,docx,pptx|max:2000000';
+        if ($this->file('documents') && is_array($this->file('documents'))) {
+            $rules['documents.*'] = $this->file_validation;
+        } elseif ($this->file('documents')) {
+            $rules['documents'] = $this->file_validation;
         }
 
-        if ($this->input('file')) {
-            $rules['file'] = 'file|mimes:csv,png,ai,jpeg,tiff,pdf,gif,psd,txt,doc,xls,ppt,xlsx,docx,pptx|max:2000000';
+        if ($this->file('file') && is_array($this->file('file'))) {
+            $rules['file.*'] = $this->file_validation;
+        } elseif ($this->file('file')) {
+            $rules['file'] = $this->file_validation;
         }
 
         return $rules;
+    }
+
+    public function prepareForValidation()
+    {
+
+        //tests to see if upload via binary data works.
+        
+        // if(request()->getContent())
+        // {
+        //     // $file = new UploadedFile(request()->getContent(), request()->header('filename'));
+        //     $file = new UploadedFile(request()->getContent(), 'something.png');
+        //     // request()->files->set('documents', $file);
+     
+        //     $this->files->add(['file' => $file]);
+
+        //     // Merge it in request also (As I found this is not needed in every case)
+        //     $this->merge(['file' => $file]);
+
+
+        // }
+       
+
+
     }
 }

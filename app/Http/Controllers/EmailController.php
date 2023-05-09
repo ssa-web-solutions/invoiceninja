@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -13,16 +13,16 @@ namespace App\Http\Controllers;
 
 use App\Events\Credit\CreditWasEmailed;
 use App\Events\Quote\QuoteWasEmailed;
-use App\Http\Middleware\UserVerified;
 use App\Http\Requests\Email\SendEmailRequest;
 use App\Jobs\Entity\EmailEntity;
-use App\Jobs\Mail\EntitySentMailer;
 use App\Jobs\PurchaseOrder\PurchaseOrderEmail;
 use App\Models\Credit;
 use App\Models\Invoice;
 use App\Models\PurchaseOrder;
 use App\Models\Quote;
 use App\Models\RecurringInvoice;
+use App\Services\Email\Email;
+use App\Services\Email\EmailObject;
 use App\Transformers\CreditTransformer;
 use App\Transformers\InvoiceTransformer;
 use App\Transformers\PurchaseOrderTransformer;
@@ -31,6 +31,7 @@ use App\Transformers\RecurringInvoiceTransformer;
 use App\Utils\Ninja;
 use App\Utils\Traits\MakesHash;
 use Illuminate\Http\Response;
+use Illuminate\Mail\Mailables\Address;
 
 class EmailController extends BaseController
 {
@@ -57,7 +58,6 @@ class EmailController extends BaseController
      *      tags={"emails"},
      *      summary="Sends an email for an entity",
      *      description="Sends an email for an entity",
-     *      @OA\Parameter(ref="#/components/parameters/X-Api-Secret"),
      *      @OA\Parameter(ref="#/components/parameters/X-Requested-With"),
      *      @OA\RequestBody(
      *         description="The template subject and body",
@@ -120,7 +120,6 @@ class EmailController extends BaseController
         $entity_obj = $entity::withTrashed()->with('invitations')->find($request->input('entity_id'));
         $subject = $request->has('subject') ? $request->input('subject') : '';
         $body = $request->has('body') ? $request->input('body') : '';
-        $entity_string = strtolower(class_basename($entity_obj));
         $template = str_replace('email_template_', '', $request->input('template'));
 
         $data = [
@@ -128,21 +127,33 @@ class EmailController extends BaseController
             'body' => $body,
         ];
 
-        if(Ninja::isHosted() && !$entity_obj->company->account->account_sms_verified)
-              return response(['message' => 'Please verify your account to send emails.'], 400);
-        
-        if($entity == 'purchaseOrder' || $entity == 'purchase_order' || $template == 'purchase_order' || $entity == 'App\Models\PurchaseOrder'){
-            return $this->sendPurchaseOrder($entity_obj, $data, $template);
+        $mo = new EmailObject;
+        $mo->subject = strlen($subject) > 3 ? $subject : null;
+        $mo->body = strlen($body) > 3 ? $body : null;
+        $mo->entity_id = $request->input('entity_id');
+        $mo->template = $request->input('template'); //full template name in use
+        $mo->entity_class = $this->resolveClass($entity);
+        $mo->email_template_body = $request->input('template');
+        $mo->email_template_subject = str_replace("template", "subject", $request->input('template'));
+
+        if ($request->has('cc_email') && $request->cc_email) {
+            $mo->cc[] = new Address($request->cc_email);
         }
 
-        $entity_obj->invitations->each(function ($invitation) use ($data, $entity_string, $entity_obj, $template) {
+        // if ($entity == 'purchaseOrder' || $entity == 'purchase_order' || $template == 'purchase_order' || $entity == 'App\Models\PurchaseOrder') {
+        //     return $this->sendPurchaseOrder($entity_obj, $data, $template);
+        // }
 
+        $entity_obj->invitations->each(function ($invitation) use ($data, $entity_obj, $template, $mo) {
             if (! $invitation->contact->trashed() && $invitation->contact->email) {
                 $entity_obj->service()->markSent()->save();
 
-                EmailEntity::dispatch($invitation->fresh(), $invitation->company, $template, $data)->delay(now()->addSeconds(2));
+                // EmailEntity::dispatch($invitation->fresh(), $invitation->company, $template, $data);
+
+                $mo->invitation_id = $invitation->id;
+
+                Email::dispatch($mo, $invitation->company);
             }
-            
         });
 
         $entity_obj = $entity_obj->fresh();
@@ -182,21 +193,43 @@ class EmailController extends BaseController
             $this->entity_transformer = RecurringInvoiceTransformer::class;
         }
 
+        if ($entity_obj instanceof PurchaseOrder) {
+            $this->entity_type = PurchaseOrder::class;
+            $this->entity_transformer = PurchaseOrderTransformer::class;
+        }
+
+        // @phpstan-ignore-next-line
         return $this->itemResponse($entity_obj->fresh());
     }
 
     private function sendPurchaseOrder($entity_obj, $data, $template)
     {
-
         $this->entity_type = PurchaseOrder::class;
 
         $this->entity_transformer = PurchaseOrderTransformer::class;
 
         $data['template'] = $template;
         
-        PurchaseOrderEmail::dispatch($entity_obj, $entity_obj->company, $data)->delay(now()->addSeconds(2));
+        PurchaseOrderEmail::dispatch($entity_obj, $entity_obj->company, $data);
         
         return $this->itemResponse($entity_obj);
+    }
 
+    private function resolveClass(string $entity): string
+    {
+        match ($entity) {
+            'invoice' => $class = Invoice::class,
+            'App\Models\Invoice' => $class = Invoice::class,
+            'credit' => $class = Credit::class,
+            'App\Models\Credit' => $class = Credit::class,
+            'quote' => $class = Quote::class,
+            'App\Models\Quote' => $class = Quote::class,
+            'purchase_order' => $class = PurchaseOrder::class,
+            'purchaseOrder' => $class = PurchaseOrder::class,
+            'App\Models\PurchaseOrder' => $class = PurchaseOrder::class,
+            default => $class = Invoice::class,
+        };
+
+        return $class;
     }
 }

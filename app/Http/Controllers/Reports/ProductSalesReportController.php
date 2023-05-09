@@ -4,17 +4,15 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
 
 namespace App\Http\Controllers\Reports;
 
-use App\Export\CSV\ProductExport;
 use App\Export\CSV\ProductSalesExport;
 use App\Http\Controllers\BaseController;
-use App\Http\Requests\Report\GenericReportRequest;
 use App\Http\Requests\Report\ProductSalesReportRequest;
 use App\Jobs\Report\SendToAdmin;
 use App\Models\Client;
@@ -39,7 +37,6 @@ class ProductSalesReportController extends BaseController
      *      tags={"reports"},
      *      summary="Product Salesreports",
      *      description="Export product sales reports",
-     *      @OA\Parameter(ref="#/components/parameters/X-Api-Secret"),
      *      @OA\Parameter(ref="#/components/parameters/X-Requested-With"),
      *      @OA\RequestBody(
      *          required=true,

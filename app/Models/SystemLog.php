@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -15,6 +15,41 @@ use App\Utils\Traits\MakesHash;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * App\Models\SystemLog
+ *
+ * @property int $id
+ * @property int $company_id
+ * @property int|null $user_id
+ * @property int|null $client_id
+ * @property int|null $category_id
+ * @property int|null $event_id
+ * @property int|null $type_id
+ * @property array $log
+ * @property int|null $created_at
+ * @property int|null $updated_at
+ * @property int|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder|SystemLog company()
+ * @method static \Illuminate\Database\Eloquent\Builder|SystemLog filter(\App\Filters\QueryFilters $filters)
+ * @method static \Illuminate\Database\Eloquent\Builder|SystemLog newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder|SystemLog newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder|SystemLog onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder|SystemLog query()
+ * @method static \Illuminate\Database\Eloquent\Builder|SystemLog whereCategoryId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|SystemLog whereClientId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|SystemLog whereCompanyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|SystemLog whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|SystemLog whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|SystemLog whereEventId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|SystemLog whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|SystemLog whereLog($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|SystemLog whereTypeId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|SystemLog whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|SystemLog whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|SystemLog withTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder|SystemLog withoutTrashed()
+ * @mixin \Eloquent
+ */
 class SystemLog extends Model
 {
     use Filterable;
@@ -69,6 +104,8 @@ class SystemLog extends Model
     const EVENT_WEBHOOK_RESPONSE = 40;
 
     const EVENT_WEBHOOK_SUCCESS = 41;
+    
+    const EVENT_WEBHOOK_FAILURE = 42;
 
     const EVENT_PDF_RESPONSE = 50;
 
@@ -148,7 +185,9 @@ class SystemLog extends Model
         }
 
         return $this
-            ->where('id', $this->decodePrimaryKey($value))->firstOrFail();
+            ->where('id', $this->decodePrimaryKey($value))
+            ->company()
+            ->firstOrFail();
     }
 
     /*

@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -16,17 +16,15 @@ use App\Jobs\Mail\NinjaMailerJob;
 use App\Jobs\Mail\NinjaMailerObject;
 use App\Libraries\MultiDB;
 use App\Mail\Admin\EntityPaidObject;
-use App\Notifications\Admin\NewPaymentNotification;
 use App\Utils\Ninja;
 use App\Utils\Traits\Notifications\UserNotifies;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Support\Facades\Notification;
 
 class PaymentNotification implements ShouldQueue
 {
     use UserNotifies;
 
-    public $delay = 5;
+    public $delay = 20;
 
     /**
      * Create the event listener.
@@ -41,7 +39,6 @@ class PaymentNotification implements ShouldQueue
      * Handle the event.
      *
      * @param object $event
-     * @return bool
      */
     public function handle($event)
     {
@@ -53,16 +50,23 @@ class PaymentNotification implements ShouldQueue
 
         $payment = $event->payment;
 
-        $nmo = new NinjaMailerObject;
-        $nmo->mailable = new NinjaMailer((new EntityPaidObject($payment))->build());
-        $nmo->company = $event->company;
-        $nmo->settings = $event->company->settings;
+
+        /*Google Analytics Track Revenue*/
+        if (isset($payment->company->google_analytics_key)) {
+            $this->trackRevenue($event);
+        }
+
+        if($payment->is_manual)
+            return;
 
         /*User notifications*/
         foreach ($payment->company->company_users as $company_user) {
             $user = $company_user->user;
 
-            $methods = $this->findUserEntityNotificationType($payment, $company_user, [
+            $methods = $this->findUserEntityNotificationType(
+                $payment,
+                $company_user,
+                [
                 'payment_success',
                 'payment_success_all',
                 'payment_success_user',
@@ -72,16 +76,18 @@ class PaymentNotification implements ShouldQueue
             if (($key = array_search('mail', $methods)) !== false) {
                 unset($methods[$key]);
 
+                $nmo = new NinjaMailerObject;
+                $nmo->mailable = new NinjaMailer((new EntityPaidObject($payment))->build());
+                $nmo->company = $event->company;
+                $nmo->settings = $event->company->settings;
                 $nmo->to_user = $user;
 
-                NinjaMailerJob::dispatch($nmo);
+                (new NinjaMailerJob($nmo))->handle();
+
+                $nmo = null;
             }
         }
 
-        /*Google Analytics Track Revenue*/
-        if (isset($payment->company->google_analytics_key)) {
-            $this->trackRevenue($event);
-        }
     }
 
     private function trackRevenue($event)

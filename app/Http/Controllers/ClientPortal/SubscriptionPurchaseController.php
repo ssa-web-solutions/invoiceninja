@@ -5,7 +5,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -17,13 +17,14 @@ use App\Models\Subscription;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class SubscriptionPurchaseController extends Controller
 {
     public function index(Subscription $subscription, Request $request)
     {
+        App::setLocale($subscription->company->locale());
+
         /* Make sure the contact is logged into the correct company for this subscription */
         if (auth()->guard('contact')->user() && auth()->guard('contact')->user()->company_id != $subscription->company_id) {
             auth()->guard('contact')->logout();
@@ -43,6 +44,8 @@ class SubscriptionPurchaseController extends Controller
 
     public function upgrade(Subscription $subscription, Request $request)
     {
+        App::setLocale($subscription->company->locale());
+
         /* Make sure the contact is logged into the correct company for this subscription */
         if (auth()->guard('contact')->user() && auth()->guard('contact')->user()->company_id != $subscription->company_id) {
             auth()->guard('contact')->logout();
@@ -53,13 +56,11 @@ class SubscriptionPurchaseController extends Controller
             $this->setLocale($request->query('locale'));
         }
 
-        if(!auth()->guard('contact')->check() && $subscription->registration_required && $subscription->company->client_can_register) {
-
-            session()->put('url.intended', route('client.subscription.upgrade',['subscription' => $subscription->hashed_id]));
+        if (!auth()->guard('contact')->check() && $subscription->registration_required && $subscription->company->client_can_register) {
+            session()->put('url.intended', route('client.subscription.upgrade', ['subscription' => $subscription->hashed_id]));
 
             return redirect()->route('client.register', ['company_key' => $subscription->company->company_key]);
-        }
-        elseif(!auth()->guard('contact')->check() && $subscription->registration_required && ! $subscription->company->client_can_register) {
+        } elseif (!auth()->guard('contact')->check() && $subscription->registration_required && ! $subscription->company->client_can_register) {
             return render('generic.subscription_blocked', ['account' => $subscription->company->account, 'company' => $subscription->company]);
         }
 
@@ -85,7 +86,4 @@ class SubscriptionPurchaseController extends Controller
             App::setLocale($record->locale);
         }
     }
-
-
-
 }

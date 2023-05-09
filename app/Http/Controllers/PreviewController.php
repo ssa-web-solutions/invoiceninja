@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -16,7 +16,7 @@ use App\Factory\CreditFactory;
 use App\Factory\InvoiceFactory;
 use App\Factory\QuoteFactory;
 use App\Factory\RecurringInvoiceFactory;
-use App\Http\Requests\Invoice\StoreInvoiceRequest;
+use App\Http\Requests\Preview\DesignPreviewRequest;
 use App\Http\Requests\Preview\PreviewInvoiceRequest;
 use App\Jobs\Util\PreviewPdf;
 use App\Libraries\MultiDB;
@@ -31,6 +31,7 @@ use App\Repositories\CreditRepository;
 use App\Repositories\InvoiceRepository;
 use App\Repositories\QuoteRepository;
 use App\Repositories\RecurringInvoiceRepository;
+use App\Services\Pdf\PdfMock;
 use App\Services\PdfMaker\Design;
 use App\Services\PdfMaker\Design as PdfDesignModel;
 use App\Services\PdfMaker\Design as PdfMakerDesign;
@@ -44,7 +45,6 @@ use App\Utils\Traits\MakesInvoiceHtml;
 use App\Utils\Traits\Pdf\PageNumbering;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Response;
 use Turbo124\Beacon\Facades\LightLogs;
 
@@ -70,7 +70,6 @@ class PreviewController extends BaseController
      *      tags={"preview"},
      *      summary="Returns a pdf preview",
      *      description="Returns a pdf preview.",
-     *      @OA\Parameter(ref="#/components/parameters/X-Api-Secret"),
      *      @OA\Parameter(ref="#/components/parameters/X-Requested-With"),
      *      @OA\Response(
      *          response=200,
@@ -109,8 +108,6 @@ class PreviewController extends BaseController
 
             $class = "App\Models\\$entity";
 
-            $pdf_class = "App\Jobs\\$entity\\Create{$entity}Pdf";
-
             $entity_obj = $class::whereId($this->decodePrimaryKey(request()->input('entity_id')))->company()->first();
 
             if (! $entity_obj) {
@@ -147,7 +144,7 @@ class PreviewController extends BaseController
             $maker
                 ->design($design)
                 ->build();
-
+            
             if (request()->query('html') == 'true') {
                 return $maker->getCompiledHTML();
             }
@@ -178,8 +175,26 @@ class PreviewController extends BaseController
         return $this->blankEntity();
     }
 
+    public function design(DesignPreviewRequest $request)
+    {
+        // if (Ninja::isHosted() && !in_array($request->getHost(), ['preview.invoicing.co','staging.invoicing.co'])) {
+        //     return response()->json(['message' => 'This server cannot handle this request.'], 400);
+        // }
+
+        $pdf = (new PdfMock($request->all(), auth()->user()->company()))->build()->getPdf();
+
+        $response = Response::make($pdf, 200);
+        $response->header('Content-Type', 'application/pdf');
+
+        return $response;
+    }
+
     public function live(PreviewInvoiceRequest $request)
     {
+        if (Ninja::isHosted() && !in_array($request->getHost(), ['preview.invoicing.co','staging.invoicing.co'])) {
+            return response()->json(['message' => 'This server cannot handle this request.'], 400);
+        }
+        
         $company = auth()->user()->company();
 
         MultiDB::setDb($company->db);
@@ -212,6 +227,14 @@ class PreviewController extends BaseController
                                     ->where('company_id', $company->id)
                                     ->withTrashed()
                                     ->first();
+            }
+
+            if ($request->has('footer') && !$request->filled('footer') && $request->input('entity') == 'recurring_invoice') {
+                $request->merge(['footer' => $company->settings->invoice_footer]);
+            }
+
+            if ($request->has('terms') && !$request->filled('terms') && $request->input('entity') == 'recurring_invoice') {
+                $request->merge(['terms' => $company->settings->invoice_terms]);
             }
 
             $entity_obj = $repo->save($request->all(), $entity_obj);
@@ -272,9 +295,7 @@ class PreviewController extends BaseController
             if (request()->query('html') == 'true') {
                 return $maker->getCompiledHTML();
             }
-
-        }
-        catch(\Exception $e){
+        } catch(\Exception $e) {
             nlog($e->getMessage());
             DB::connection(config('database.default'))->rollBack();
 
@@ -286,20 +307,20 @@ class PreviewController extends BaseController
                 return (new Phantom)->convertHtmlToPdf($maker->getCompiledHTML(true));
             }
             
-            if(config('ninja.invoiceninja_hosted_pdf_generation') || config('ninja.pdf_generator') == 'hosted_ninja'){
+            if (config('ninja.invoiceninja_hosted_pdf_generation') || config('ninja.pdf_generator') == 'hosted_ninja') {
                 $pdf = (new NinjaPdf())->build($maker->getCompiledHTML(true));
 
                 $numbered_pdf = $this->pageNumbering($pdf, auth()->user()->company());
 
 
-            $numbered_pdf = $this->pageNumbering($pdf, auth()->user()->company());
+                $numbered_pdf = $this->pageNumbering($pdf, auth()->user()->company());
 
-            if ($numbered_pdf) {
-                $pdf = $numbered_pdf;
+                if ($numbered_pdf) {
+                    $pdf = $numbered_pdf;
+                }
+
+                return $pdf;
             }
-
-            return $pdf;
-        }
 
         $file_path = (new PreviewPdf($maker->getCompiledHTML(true), $company))->handle();
 
@@ -404,8 +425,8 @@ class PreviewController extends BaseController
             'user_id' => auth()->user()->id,
             'company_id' => auth()->user()->company()->id,
             'client_id' => $client->id,
-            'terms' => 'Sample Terms',
-            'footer' => 'Sample Footer',
+            'terms' => auth()->user()->company()->settings->invoice_terms,
+            'footer' => auth()->user()->company()->settings->invoice_footer,
             'public_notes' => 'Sample Public Notes',
         ]);
 

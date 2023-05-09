@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -123,6 +123,10 @@ class ClientPaymentFailureObject
             'additional_info' => false,
             'company' => $this->company,
         ];
+
+        if (strlen($this->error > 1)) {
+            $data['content'] .= "\n\n".$this->error;
+        }
 
         return $data;
     }

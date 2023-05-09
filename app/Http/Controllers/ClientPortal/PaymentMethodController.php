@@ -5,7 +5,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -23,7 +23,6 @@ use App\Utils\Traits\MakesDates;
 use Exception;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class PaymentMethodController extends Controller
@@ -57,7 +56,6 @@ class PaymentMethodController extends Controller
 
         $data['gateway'] = $gateway;
         $data['client'] = auth()->user()->client;
-
         return $gateway
             ->driver(auth()->user()->client)
             ->setPaymentMethod($request->query('method'))
@@ -147,6 +145,9 @@ class PaymentMethodController extends Controller
     {
         if (request()->query('method') == GatewayType::CREDIT_CARD) {
             return auth()->user()->client->getCreditCardGateway();
+        }
+        if (request()->query('method') == GatewayType::BACS) {
+            return auth()->user()->client->getBACSGateway();
         }
 
         if (in_array(request()->query('method'), [GatewayType::BANK_TRANSFER, GatewayType::DIRECT_DEBIT, GatewayType::SEPA])) {

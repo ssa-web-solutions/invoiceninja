@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -55,7 +55,7 @@ abstract class QueryFilters
 
     /**
      * The "with" filter property column.
-     * 
+     *
      * var string
      */
     protected $with_property = 'id';
@@ -130,6 +130,38 @@ abstract class QueryFilters
     }
 
     /**
+     * Filters the list based on the status
+     * archived, active, deleted.
+     *
+     * @param string filter
+     * @return Builder
+     */
+    public function status(string $filter = ''): Builder
+    {
+        if (strlen($filter) == 0) {
+            return $this->builder;
+        }
+
+        $filters = explode(',', $filter);
+
+        return $this->builder->where(function ($query) use ($filters) {
+            if (in_array(self::STATUS_ACTIVE, $filters)) {
+                $query->orWhereNull('deleted_at');
+            }
+
+            if (in_array(self::STATUS_ARCHIVED, $filters)) {
+                $query->orWhere(function ($query) {
+                    $query->whereNotNull('deleted_at')->where('is_deleted', 0);
+                });
+            }
+
+            if (in_array(self::STATUS_DELETED, $filters)) {
+                $query->orWhere('is_deleted', 1);
+            }
+        });
+    }
+
+    /**
      * String to operator convertor.
      *
      * @param string $operator
@@ -156,7 +188,6 @@ abstract class QueryFilters
             default:
                 return '=';
                 break;
-
         }
     }
 
@@ -176,29 +207,42 @@ abstract class QueryFilters
 
     public function created_at($value = '')
     {
-        
-        if($value == '')
+        if ($value == '') {
             return $this->builder;
+        }
 
-        try{
-
-            if(is_numeric($value)){
+        try {
+            if (is_numeric($value)) {
                 $created_at = Carbon::createFromTimestamp((int)$value);
-            }
-            else{
+            } else {
                 $created_at = Carbon::parse($value);
             }
 
             return $this->builder->where('created_at', '>=', $created_at);
-
-        }
-        catch(\Exception $e) {
-
+        } catch(\Exception $e) {
             return $this->builder;
-
         }
-        
     }
+
+    public function updated_at($value = '')
+    {
+        if ($value == '') {
+            return $this->builder;
+        }
+
+        try {
+            if (is_numeric($value)) {
+                $created_at = Carbon::createFromTimestamp((int)$value);
+            } else {
+                $created_at = Carbon::parse($value);
+            }
+
+            return $this->builder->where('updated_at', '>=', $created_at);
+        } catch (\Exception $e) {
+            return $this->builder;
+        }
+    }
+
 
     public function is_deleted($value)
     {
@@ -209,7 +253,7 @@ abstract class QueryFilters
         return $this->builder->where('is_deleted', $value);
     }
 
-    public function client_id(string $client_id = '') :Builder
+    public function client_id(string $client_id = ''): Builder
     {
         if (strlen($client_id) == 0) {
             return $this->builder;
@@ -218,7 +262,7 @@ abstract class QueryFilters
         return $this->builder->where('client_id', $this->decodePrimaryKey($client_id));
     }
 
-    public function vendor_id(string $vendor_id = '') :Builder
+    public function vendor_id(string $vendor_id = ''): Builder
     {
         if (strlen($vendor_id) == 0) {
             return $this->builder;

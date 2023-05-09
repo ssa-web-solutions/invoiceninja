@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -50,10 +50,10 @@ class InvoiceEmailActivity implements ShouldQueue
         $fields->user_id = $user_id;
         $fields->invoice_id = $event->invitation->invoice->id;
         $fields->company_id = $event->invitation->invoice->company_id;
-        $fields->client_contact_id = $event->invitation->invoice->client_contact_id;
+        $fields->client_contact_id = $event->invitation->client_contact_id;
         $fields->client_id = $event->invitation->invoice->client_id;
         $fields->activity_type_id = Activity::EMAIL_INVOICE;
 
-        $this->activity_repo->save($fields, $event->invitation->invoice, $event->event_vars);
+        $this->activity_repo->save($fields, $event->invitation, $event->event_vars);
     }
 }

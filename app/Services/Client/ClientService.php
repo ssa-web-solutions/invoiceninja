@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -13,76 +13,85 @@ namespace App\Services\Client;
 
 use App\Models\Client;
 use App\Models\Credit;
-use App\Services\Client\Merge;
-use App\Services\Client\PaymentMethod;
+use App\Models\Payment;
+use App\Services\Email\Email;
+use App\Services\Email\EmailObject;
+use App\Services\Email\EmailService;
 use App\Utils\Number;
-use Illuminate\Database\Eloquent\Collection;
+use App\Utils\Traits\MakesDates;
+use Illuminate\Mail\Mailables\Address;
+use Illuminate\Support\Facades\DB;
 
 class ClientService
 {
-    private $client;
+    use MakesDates;
 
-    public function __construct(Client $client)
+    private string $client_start_date;
+
+    private string $client_end_date;
+
+    public function __construct(private Client $client)
     {
-        $this->client = $client;
     }
 
     public function updateBalance(float $amount)
     {
-
         try {
-            \DB::connection(config('database.default'))->transaction(function () use($amount) {
-
+            DB::connection(config('database.default'))->transaction(function () use ($amount) {
                 $this->client = Client::withTrashed()->where('id', $this->client->id)->lockForUpdate()->first();
                 $this->client->balance += $amount;
-                $this->client->save();
-
+                $this->client->saveQuietly();
             }, 2);
-        }
-        catch (\Throwable $throwable) {
+        } catch (\Throwable $throwable) {
             nlog("DB ERROR " . $throwable->getMessage());
         }
 
         return $this;
-        
     }
 
     public function updateBalanceAndPaidToDate(float $balance, float $paid_to_date)
     {
-
         try {
-            \DB::connection(config('database.default'))->transaction(function () use($balance, $paid_to_date) {
-
+            DB::connection(config('database.default'))->transaction(function () use ($balance, $paid_to_date) {
                 $this->client = Client::withTrashed()->where('id', $this->client->id)->lockForUpdate()->first();
                 $this->client->balance += $balance;
                 $this->client->paid_to_date += $paid_to_date;
-                $this->client->save();
-
+                $this->client->saveQuietly();
             }, 2);
-        }
-        catch (\Throwable $throwable) {
+        } catch (\Throwable $throwable) {
             nlog("DB ERROR " . $throwable->getMessage());
         }
    
-
-
         return $this;
     }
 
     public function updatePaidToDate(float $amount)
     {
-        // $this->client->paid_to_date += $amount;
-
-        \DB::connection(config('database.default'))->transaction(function () use($amount) {
-
+        DB::connection(config('database.default'))->transaction(function () use ($amount) {
             $this->client = Client::withTrashed()->where('id', $this->client->id)->lockForUpdate()->first();
             $this->client->paid_to_date += $amount;
-            $this->client->save();
-
+            $this->client->saveQuietly();
         }, 2);
 
         return $this;
     }
+
+    public function updatePaymentBalance()
+    {
+        $amount = Payment::where('client_id', $this->client->id)
+                        ->where('is_deleted', 0)
+                        ->whereIn('status_id', [Payment::STATUS_COMPLETED, Payment::STATUS_PENDING, Payment::STATUS_PARTIALLY_REFUNDED, Payment::STATUS_REFUNDED])
+                        ->sum(DB::Raw('amount - refunded - applied'));
+
+        DB::connection(config('database.default'))->transaction(function () use ($amount) {
+            $this->client = Client::withTrashed()->where('id', $this->client->id)->lockForUpdate()->first();
+            $this->client->payment_balance = $amount;
+            $this->client->saveQuietly();
+        }, 2);
+
+        return $this;
+    }
+
 
     public function adjustCreditBalance(float $amount)
     {
@@ -132,15 +141,71 @@ class ClientService
      * Generate the client statement.
      *
      * @param array $options
+     * @param bool $send_email determines if we should send this statement direct to the client
      */
-    public function statement(array $options = [])
+    public function statement(array $options = [], bool $send_email = false)
     {
-        return (new Statement($this->client, $options))->run();
+        $statement = (new Statement($this->client, $options));
+
+        $pdf = $statement->run();
+
+        if ($send_email) {
+            return $this->emailStatement($pdf, $statement->options);
+        }
+
+        return $pdf;
     }
 
+    /**
+     * Emails the statement to the client
+     *
+     * @param  mixed $pdf     The pdf blob
+     * @param  array  $options The statement options array
+     * @return void
+     */
+    private function emailStatement($pdf, array $options): void
+    {
+        $this->client_start_date = $this->translateDate($options['start_date'], $this->client->date_format(), $this->client->locale());
+        $this->client_end_date = $this->translateDate($options['end_date'], $this->client->date_format(), $this->client->locale());
+
+        // $email_service = new EmailService($this->buildStatementMailableData($pdf), $this->client->company);
+        // $email_service->send();
+        
+        $email_object = $this->buildStatementMailableData($pdf);
+        Email::dispatch($email_object, $this->client->company);
+    }
+
+    /**
+     * Builds and returns an EmailObject for Client Statements
+     *
+     * @param  mixed $pdf       The PDF to send
+     * @return EmailObject      The EmailObject to send
+     */
+    public function buildStatementMailableData($pdf) :EmailObject
+    {
+        $email_object = new EmailObject;
+        $email_object->to = [new Address($this->client->present()->email(), $this->client->present()->name())];
+        $email_object->attachments = [['file' => base64_encode($pdf), 'name' => ctrans('texts.statement') . ".pdf"]];
+        $email_object->client_id = $this->client->id;
+        $email_object->email_template_subject = 'email_subject_statement';
+        $email_object->email_template_body = 'email_template_statement';
+        $email_object->variables = [
+            '$client' => $this->client->present()->name(),
+            '$start_date' => $this->client_start_date,
+            '$end_date' => $this->client_end_date,
+        ];
+
+        return $email_object;
+    }
+
+    /**
+     * Saves the client instance
+     *
+     * @return Client The Client Model
+     */
     public function save() :Client
     {
-        $this->client->save();
+        $this->client->saveQuietly();
 
         return $this->client->fresh();
     }

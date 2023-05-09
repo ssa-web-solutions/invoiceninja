@@ -4,7 +4,7 @@
  *
  * @link https://github.com/invoiceninja/invoiceninja source repository
  *
- * @copyright Copyright (c) 2022. Invoice Ninja LLC (https://invoiceninja.com)
+ * @copyright Copyright (c) 2023. Invoice Ninja LLC (https://invoiceninja.com)
  *
  * @license https://www.elastic.co/licensing/elastic-license
  */
@@ -25,15 +25,15 @@ class ContactExport extends BaseExport
 {
     private Company $company;
 
-    protected array $input;
-
     private ClientTransformer $client_transformer;
 
     private ClientContactTransformer $contact_transformer;
 
-    protected string $date_key = 'created_at';
+    public Writer $csv;
 
-    protected array $entity_keys = [
+    public string $date_key = 'created_at';
+
+    public array $entity_keys = [
         'address1' => 'client.address1',
         'address2' => 'client.address2',
         'balance' => 'client.balance',
