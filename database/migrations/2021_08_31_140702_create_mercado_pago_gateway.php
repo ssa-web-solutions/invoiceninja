@@ -14,6 +14,7 @@ class CreateMercadoPagoGateway extends Migration
     public function up()
     {
         $gateway = new Gateway();
+        $gateway->id = 500;
         $gateway->name = 'Mercado Pago';
         $gateway->key = Str::lower(Str::random(32));
         $gateway->provider = 'MercadoPago';
@@ -32,6 +33,6 @@ class CreateMercadoPagoGateway extends Migration
      */
     public function down()
     {
-        Gateway::where('provider', 'RecebeAqui')->delete();
+        Gateway::where('provider', 'MercadoPago')->delete();
     }
 }
