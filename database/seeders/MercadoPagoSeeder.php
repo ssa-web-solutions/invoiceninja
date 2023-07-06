@@ -1,17 +1,20 @@
 <?php
 
+namespace Database\Seeders;
+
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
 use App\Models\Gateway;
-use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Str;
 
-class CreateMercadoPagoGateway extends Migration
+class MercadoPagoSeeder extends Seeder
 {
     /**
-     * Run the migrations.
+     * Run the database seeds.
      *
      * @return void
      */
-    public function up()
+    public function run()
     {
         $gateway = new Gateway();
         $gateway->name = 'Mercado Pago';
@@ -19,19 +22,9 @@ class CreateMercadoPagoGateway extends Migration
         $gateway->provider = 'MercadoPago';
         $gateway->is_offsite = false;
         $gateway->fields = json_encode(['publicKey' => '', 'accessToken' => '']);
-        $gateway->visible = 1;
+        $gateway->visible = true;
         $gateway->site_url = 'https://www.mercadopago.com.br/developers/pt/guides/online-payments/checkout-pro/introduction';
         $gateway->default_gateway_type_id = 1;
         $gateway->save();
-    }
-
-    /**
-     * Reverse the migrations.
-     *
-     * @return void
-     */
-    public function down()
-    {
-        Gateway::where('provider', 'RecebeAqui')->delete();
     }
 }
