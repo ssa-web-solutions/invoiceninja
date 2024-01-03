@@ -36,11 +36,13 @@ use App\Models\CompanyToken;
 use App\Models\Country;
 use App\Models\Credit;
 use App\Models\Expense;
+use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\Quote;
 use App\Models\RecurringInvoice;
 use App\Models\Task;
+use App\Models\TaskStatus;
 use App\Models\TaxRate;
 use App\Models\User;
 use App\Models\Vendor;
@@ -71,6 +73,7 @@ class CreateSingleAccount extends Command
 
     protected $gateway;
 
+    public $faker;
     /**
      * Execute the console command.
      *
@@ -78,6 +81,8 @@ class CreateSingleAccount extends Command
      */
     public function handle()
     {
+        $this->faker = Factory::create();
+
         if (Ninja::isHosted() || config('ninja.is_docker') || !$this->confirm('Are you sure you want to inject dummy data?')) {
             return;
         }
@@ -303,6 +308,62 @@ class CreateSingleAccount extends Command
         $this->createGateways($company, $user);
 
         $this->createSubsData($company, $user);
+
+
+        $repo = new \App\Repositories\TaskRepository();
+
+        Task::query()->cursor()->each(function ($t) use ($repo) {
+            $repo->save([], $t);
+        });
+
+        $repo = new \App\Repositories\ExpenseRepository();
+
+        Expense::query()->cursor()->each(function ($t) use ($repo) {
+            $repo->save([], $t);
+        });
+
+        $repo = new \App\Repositories\VendorRepository(new \App\Repositories\VendorContactRepository());
+        Vendor::query()->cursor()->each(function ($t) use ($repo) {
+            $repo->save([], $t);
+        });
+
+        $repo = new \App\Repositories\ClientRepository(new \App\Repositories\ClientContactRepository());
+        Client::query()->cursor()->each(function ($t) use ($repo) {
+            $repo->save([], $t);
+        });
+
+        $repo = new \App\Repositories\RecurringInvoiceRepository();
+        RecurringInvoice::query()->cursor()->each(function ($t) use ($repo) {
+            $repo->save([], $t);
+        });
+
+        $repo = new \App\Repositories\InvoiceRepository();
+        Invoice::query()->cursor()->each(function ($t) use ($repo) {
+            $repo->save([], $t);
+        });
+
+        $repo = new \App\Repositories\QuoteRepository();
+        Quote::query()->cursor()->each(function ($t) use ($repo) {
+            $repo->save([], $t);
+        });
+
+        $repo = new \App\Repositories\CreditRepository();
+        Credit::query()->cursor()->each(function ($t) use ($repo) {
+            $repo->save([], $t);
+        });
+
+        
+        Project::query()->with('client')->whereNotNull('client_id')->cursor()->each(function ($p) {
+            
+            if($p && $p->client && !isset($p->number)) {
+                $p->number = $this->getNextProjectNumber($p);
+                $p->save();
+            }
+
+        });
+
+        $this->info("finished");
+        
     }
 
     private function createSubsData($company, $user)
@@ -403,7 +464,7 @@ class CreateSingleAccount extends Command
 
         $settings = $client->settings;
         $settings->currency_id = "1";
-//        $settings->use_credits_payment = "always";
+        //        $settings->use_credits_payment = "always";
 
         $client->settings = $settings;
 
@@ -446,19 +507,61 @@ class CreateSingleAccount extends Command
 
     private function createTask($client)
     {
-        $vendor = Task::factory()->create([
+        $time_log = $this->createTimeLog(rand(1, 20));
+        $status = TaskStatus::where('company_id', $client->company_id)->get()->random();
+        
+        return Task::factory()->create([
                 'user_id' => $client->user->id,
                 'company_id' => $client->company->id,
+                'time_log' => $time_log,
+                'description' => $this->faker->paragraph,
+                'status_id' => $status->id ?? null,
+                'number' => rand(10000, 100000000),
+                'rate' => rand(1, 150),
+                'client_id' => $client->id
             ]);
+    }
+
+    private function createTimeLog(int $count)
+    {
+        $time_log = [];
+
+        $min = 0;
+
+        for ($x = 0; $x < $count; $x++) {
+
+            $rando = rand(300, 87000);
+
+            $time_log[] = [
+                Carbon::now()->addSeconds($min)->timestamp,
+                Carbon::now()->addSeconds($min += $rando)->timestamp,
+                $this->faker->sentence,
+                rand(0, 1) === 0 ? false : true
+            ];
+
+            $min += 300;
+        }
+
+        return json_encode($time_log);
     }
 
     private function createProject($client)
     {
-        $vendor = Project::factory()->create([
+        $project = Project::factory()->create([
                 'user_id' => $client->user->id,
                 'company_id' => $client->company->id,
                 'client_id' => $client->id,
+                'due_date' => now()->addSeconds(rand(100000, 1000000))->format('Y-m-d'),
+                'budgeted_hours' => rand(100, 1000),
+                'task_rate' => rand(1, 200),
             ]);
+
+        for($x=0; $x < rand(2, 5); $x++) {
+            $task = $this->createTask($client);
+            $task->project_id = $project->id;
+            $task->save();
+        }
+
     }
 
     private function createInvoice($client)
@@ -502,6 +605,7 @@ class CreateSingleAccount extends Command
             $invoice->amount = 100; // Braintree sandbox only allows payments under 2,000 to complete successfully.
         }
 
+        /** @var \App\Models\Invoice $invoice */
         $invoice->save();
         $invoice->service()->createInvitations()->markSent();
 
@@ -529,6 +633,7 @@ class CreateSingleAccount extends Command
 
         $credit = $invoice_calc->getCredit();
 
+        /** @var \App\Models\Credit $credit */
         $credit->save();
         $credit->service()->markSent()->save();
         $credit->service()->createInvitations();
@@ -571,6 +676,7 @@ class CreateSingleAccount extends Command
 
         $quote->save();
 
+        /** @var \App\Models\Quote $quote */
         $quote->service()->markSent()->save();
         $quote->service()->createInvitations();
     }
@@ -710,6 +816,29 @@ class CreateSingleAccount extends Command
             $cg->fees_and_limits = $fees_and_limits;
             $cg->save();
         }
+
+        if (config('ninja.testvars.paypal_rest') && ($this->gateway == 'all' || $this->gateway == 'paypal_rest')) {
+            $cg = new CompanyGateway;
+            $cg->company_id = $company->id;
+            $cg->user_id = $user->id;
+            $cg->gateway_key = '80af24a6a691230bbec33e930ab40665';
+            $cg->require_cvv = true;
+            $cg->require_billing_address = true;
+            $cg->require_shipping_address = true;
+            $cg->update_details = true;
+            $cg->config = encrypt(config('ninja.testvars.paypal_rest'));
+            $cg->save();
+
+            // $gateway_types = $cg->driver()->gatewayTypes();
+
+            $fees_and_limits = new stdClass;
+            $fees_and_limits->{3} = new FeesAndLimits;
+
+            $cg->fees_and_limits = $fees_and_limits;
+            $cg->save();
+        }
+
+
 
         if (config('ninja.testvars.checkout') && ($this->gateway == 'all' || $this->gateway == 'checkout')) {
             $cg = new CompanyGateway;
@@ -862,11 +991,11 @@ class CreateSingleAccount extends Command
         }
     }
 
-    private function createRecurringInvoice($client)
+    private function createRecurringInvoice(Client $client)
     {
         $faker = Factory::create();
 
-        $invoice = RecurringInvoiceFactory::create($client->company->id, $client->user->id); //stub the company and user_id
+        $invoice = RecurringInvoiceFactory::create($client->company_id, $client->user_id); //stub the company and user_id
         $invoice->client_id = $client->id;
         $dateable = Carbon::now()->subDays(rand(0, 90));
         $invoice->date = $dateable;

@@ -14,7 +14,6 @@ namespace App\Http\Requests\TaskScheduler;
 use App\Http\Requests\Request;
 use App\Http\ValidationRules\Scheduler\ValidClientIds;
 use App\Utils\Traits\MakesHash;
-use Illuminate\Validation\Rule;
 
 class StoreSchedulerRequest extends Request
 {
@@ -26,7 +25,10 @@ class StoreSchedulerRequest extends Request
      */
     public function authorize(): bool
     {
-        return auth()->user()->isAdmin();
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+
+        return $user->isAdmin();
     }
 
     public function rules()
@@ -45,7 +47,7 @@ class StoreSchedulerRequest extends Request
             'parameters.end_date' => ['bail', 'sometimes', 'date:Y-m-d', 'required_if:parameters.date_rate,custom', 'after_or_equal:parameters.start_date'],
             'parameters.entity' => ['bail', 'sometimes', 'string', 'in:invoice,credit,quote,purchase_order'],
             'parameters.entity_id' => ['bail', 'sometimes', 'string'],
-            'parameters.report_name' => ['bail','sometimes', 'string', 'required_if:template,email_report', 'in:ar_detailed,ar_summary,client_balance,tax_summary,profitloss,client_sales,user_sales,product_sales,clients,client_contacts,credits,documents,expenses,invoices,invoice_items,quotes,quote_items,recurring_invoices,payments,products,tasks'],
+            'parameters.report_name' => ['bail','sometimes', 'string', 'required_if:template,email_report','in:ar_detailed,ar_summary,client_balance,tax_summary,profitloss,client_sales,user_sales,product_sales,clients,client_contacts,credits,documents,expenses,invoices,invoice_items,quotes,quote_items,recurring_invoices,payments,products,tasks'],
             'parameters.date_key' => ['bail','sometimes', 'string'],
         ];
 
@@ -57,10 +59,10 @@ class StoreSchedulerRequest extends Request
         $input = $this->all();
 
         if (array_key_exists('next_run', $input) && is_string($input['next_run'])) {
-            $this->merge(['next_run_client' => $input['next_run']]);
+            $input['next_run_client'] = $input['next_run'];
         }
      
-        if($input['template'] == 'email_record'){
+        if($input['template'] == 'email_record') {
             $input['frequency_id'] = 0;
         }
 

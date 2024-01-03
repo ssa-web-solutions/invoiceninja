@@ -39,9 +39,13 @@ class OAuth
 
     const SOCIAL_APPLE = 8;
 
+    public $provider_instance;
+    
+    public $provider_id;
+
     /**
-     * @param Socialite $user
-     * @return bool|\App\Models\User|\App\Libraries\App\Models\User|null
+     * @param \Laravel\Socialite\Facades\Socialite $socialite_user
+     * @return bool | \App\Models\User | \App\Models\User | null
      */
     public static function handleAuth($socialite_user, $provider)
     {
@@ -87,6 +91,8 @@ class OAuth
                 return 'microsoft';
             case self::SOCIAL_APPLE:
                 return 'apple';
+            default:
+                return 'google';
         }
     }
 
@@ -109,6 +115,8 @@ class OAuth
                 return self::SOCIAL_MICROSOFT;
             case 'apple':
                 return self::SOCIAL_APPLE;
+            default:
+                return self::SOCIAL_GOOGLE;
         }
     }
 

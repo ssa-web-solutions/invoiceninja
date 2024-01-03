@@ -18,7 +18,6 @@ use App\Services\PdfMaker\Designs\Utilities\DesignHelpers;
 use App\Utils\HtmlEngine;
 use App\Utils\Ninja;
 use Illuminate\Mail\Mailable;
-use Illuminate\Support\Facades\Storage;
 
 class TemplateEmail extends Mailable
 {
@@ -109,12 +108,15 @@ class TemplateEmail extends Mailable
 
         if (strlen($settings->bcc_email) > 1) {
             if (Ninja::isHosted()) {
-                $bccs = explode(',', str_replace(' ', '', $settings->bcc_email));
-                $this->bcc(array_slice($bccs, 0, 2));
-            //$this->bcc(reset($bccs)); //remove whitespace if any has been inserted.
+
+                if($company->account->isPaid()) {
+                    $bccs = explode(',', str_replace(' ', '', $settings->bcc_email));
+                    $this->bcc(array_slice($bccs, 0, 5));
+                }
+
             } else {
                 $this->bcc(explode(',', str_replace(' ', '', $settings->bcc_email)));
-            }//remove whitespace if any has been inserted.
+            }
         }
 
         $this->subject(str_replace("<br>", "", $this->build_email->getSubject()))
@@ -152,13 +154,14 @@ class TemplateEmail extends Mailable
             if ($ubl_string) {
                 $this->attachData($ubl_string, $this->invitation->invoice->getFileName('xml'));
             }
+            
         }
         if ($this->invitation && $this->invitation->invoice && $this->invitation->invoice->client->getSetting('enable_e_invoice') && $this->company->account->hasFeature(Account::FEATURE_PDF_ATTACHMENT)) {
-            
-            $xinvoice_filepath = $this->invitation->invoice->service()->getEInvoice($this->invitation->contact);
+            $xml_string = $this->invitation->invoice->service()->getEInvoice($this->invitation->contact);
 
-            if(Storage::disk(config('filesystems.default'))->exists($xinvoice_filepath))
-                $this->attach(Storage::disk(config('filesystems.default'))->path($xinvoice_filepath), ['as' => $this->invitation->invoice->getFileName("xml"), 'mime' => null]);
+            if($xml_string) {
+                $this->attachData($xml_string, $this->invitation->invoice->getEFileName("xml"));
+            }
         
         }
 

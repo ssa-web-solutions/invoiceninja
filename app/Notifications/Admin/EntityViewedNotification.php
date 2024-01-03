@@ -12,7 +12,6 @@
 namespace App\Notifications\Admin;
 
 use App\Utils\Number;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Messages\SlackMessage;
 use Illuminate\Notifications\Notification;
 
@@ -67,7 +66,7 @@ class EntityViewedNotification extends Notification
      * Get the mail representation of the notification.
      *
      * @param  mixed  $notifiable
-     * @return MailMessage
+     *
      */
     public function toMail($notifiable)
     {
@@ -103,7 +102,7 @@ class EntityViewedNotification extends Notification
                     $this->entity_name => $this->entity->number,
                 ]
             ))
-            ->attachment(function ($attachment) use ($amount) {
+            ->attachment(function ($attachment) {
                 $attachment->title(ctrans('texts.entity_number_placeholder', ['entity' => ucfirst($this->entity_name), 'entity_number' => $this->entity->number]), $this->invitation->getAdminLink())
                            ->fields([
                                ctrans('texts.client') => $this->contact->present()->name(),
@@ -112,30 +111,30 @@ class EntityViewedNotification extends Notification
             });
     }
 
-    private function buildDataArray()
-    {
-        $amount = Number::formatMoney($this->entity->amount, $this->entity->client);
+    // private function buildDataArray()
+    // {
+    //     $amount = Number::formatMoney($this->entity->amount, $this->entity->client);
 
-        $data = [
-            'title' => $this->buildSubject(),
-            'message' => ctrans(
-                "texts.notification_{$this->entity_name}_viewed",
-                [
-                    'amount' => $amount,
-                    'client' => $this->contact->present()->name(),
-                    $this->entity_name => $this->entity->number,
-                ]
-            ),
-            'url' => $this->invitation->getAdminLink(),
-            'button' => ctrans("texts.view_{$this->entity_name}"),
-            'signature' => $this->settings->email_signature,
-            'logo' => $this->company->present()->logo(),
-            'settings' => $this->settings,
+    //     $data = [
+    //         'title' => $this->buildSubject(),
+    //         'message' => ctrans(
+    //             "texts.notification_{$this->entity_name}_viewed",
+    //             [
+    //                 'amount' => $amount,
+    //                 'client' => $this->contact->present()->name(),
+    //                 $this->entity_name => $this->entity->number,
+    //             ]
+    //         ),
+    //         'url' => $this->invitation->getAdminLink(),
+    //         'button' => ctrans("texts.view_{$this->entity_name}"),
+    //         'signature' => $this->settings->email_signature,
+    //         'logo' => $this->company->present()->logo(),
+    //         'settings' => $this->settings,
 
-        ];
+    //     ];
 
-        return $data;
-    }
+    //     return $data;
+    // }
 
     private function buildSubject()
     {

@@ -31,6 +31,8 @@ class AdjustProductInventory implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, UserNotifies;
 
+    private array $notified_products = [];
+
     public function __construct(public Company $company, public Invoice $invoice, public $old_invoice = [])
     {
     }
@@ -56,22 +58,10 @@ class AdjustProductInventory implements ShouldQueue
     {
         MultiDB::setDb($this->company->db);
 
-        // foreach ($this->invoice->line_items as $item) {
-        //     $p = Product::where('product_key', $item->product_key)->where('company_id', $this->company->id)->first();
-
-        //     if (! $p) {
-        //         continue;
-        //     }
-
-        //     $p->in_stock_quantity += $item->quantity;
-
-        //     $p->saveQuietly();
-        // }
-
         collect($this->invoice->line_items)->filter(function ($item) {
             return $item->type_id == '1';
         })->each(function ($i) {
-            $p = Product::where('product_key', $i->product_key)->where('company_id', $this->company->id)->first();
+            $p = Product::query()->where('product_key', $i->product_key)->where('company_id', $this->company->id)->first();
 
             if ($p) {
                 $p->in_stock_quantity += $i->quantity;
@@ -88,7 +78,7 @@ class AdjustProductInventory implements ShouldQueue
         collect($this->invoice->line_items)->filter(function ($item) {
             return $item->type_id == '1';
         })->each(function ($i) {
-            $p = Product::where('product_key', $i->product_key)->where('company_id', $this->company->id)->first();
+            $p = Product::query()->where('product_key', $i->product_key)->where('company_id', $this->company->id)->first();
 
             if ($p) {
                 $p->in_stock_quantity -= $i->quantity;
@@ -109,7 +99,7 @@ class AdjustProductInventory implements ShouldQueue
         collect($this->invoice->line_items)->filter(function ($item) {
             return $item->type_id == '1';
         })->each(function ($i) {
-            $p = Product::where('product_key', $i->product_key)->where('company_id', $this->company->id)->first();
+            $p = Product::query()->where('product_key', $i->product_key)->where('company_id', $this->company->id)->first();
 
             if ($p) {
                 $p->in_stock_quantity -= $i->quantity;
@@ -131,7 +121,7 @@ class AdjustProductInventory implements ShouldQueue
         collect($this->old_invoice)->filter(function ($item) {
             return $item->type_id == '1';
         })->each(function ($i) {
-            $p = Product::where('product_key', $i->product_key)->where('company_id', $this->company->id)->first();
+            $p = Product::query()->where('product_key', $i->product_key)->where('company_id', $this->company->id)->first();
 
             if ($p) {
                 $p->in_stock_quantity += $i->quantity;
@@ -147,11 +137,15 @@ class AdjustProductInventory implements ShouldQueue
         $nmo->company = $this->company;
         $nmo->settings = $this->company->settings;
 
+        
         $this->company->company_users->each(function ($cu) use ($product, $nmo, $notification_level) {
-            if ($this->checkNotificationExists($cu, $product, ['inventory_all', 'inventory_user', 'inventory_threshold_all', 'inventory_threshold_user'])) {
+        
+            /** @var \App\Models\CompanyUser $cu */
+            if ($this->checkNotificationExists($cu, $product, ['inventory_all', 'inventory_user', 'inventory_threshold_all', 'inventory_threshold_user']) && (! in_array($product->id, $this->notified_products))) {
                 $nmo->mailable = new NinjaMailer((new InventoryNotificationObject($product, $notification_level, $cu->portalType()))->build());
                 $nmo->to_user = $cu->user;
                 NinjaMailerJob::dispatch($nmo);
+                $this->notified_products[] = $product->id;
             }
         });
     }

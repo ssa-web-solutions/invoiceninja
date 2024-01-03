@@ -14,6 +14,7 @@ namespace App\Transformers;
 use App\Models\Activity;
 use App\Models\Backup;
 use App\Models\Client;
+use App\Models\Credit;
 use App\Models\Document;
 use App\Models\Invoice;
 use App\Models\InvoiceInvitation;
@@ -24,12 +25,12 @@ class InvoiceTransformer extends EntityTransformer
 {
     use MakesHash;
 
-    protected $defaultIncludes = [
+    protected array $defaultIncludes = [
         'invitations',
         'documents',
     ];
 
-    protected $availableIncludes = [
+    protected array $availableIncludes = [
         'payments',
         'client',
         'activities',
@@ -63,6 +64,13 @@ class InvoiceTransformer extends EntityTransformer
         return $this->includeCollection($invoice->payments, $transformer, Payment::class);
     }
 
+    public function includeCredits(Invoice $invoice)
+    {
+        $transformer = new CreditTransformer($this->serializer);
+
+        return $this->includeCollection($invoice->credits, $transformer, Credit::class);
+    }
+
     /*
         public function includeExpenses(Invoice $invoice)
         {
@@ -87,7 +95,7 @@ class InvoiceTransformer extends EntityTransformer
 
     public function transform(Invoice $invoice)
     {
-        return [
+        $data = [
             'id' => $this->encodePrimaryKey($invoice->id),
             'user_id' => $this->encodePrimaryKey($invoice->user_id),
             'project_id' => $this->encodePrimaryKey($invoice->project_id),
@@ -149,7 +157,14 @@ class InvoiceTransformer extends EntityTransformer
             'paid_to_date' => (float) $invoice->paid_to_date,
             'subscription_id' => $this->encodePrimaryKey($invoice->subscription_id),
             'auto_bill_enabled' => (bool) $invoice->auto_bill_enabled,
-            // 'tax_data' => $invoice->tax_data ?: '',            
+            'tax_info' => $invoice->tax_data ?: new \stdClass,
         ];
+
+        if (request()->has('reminder_schedule') && request()->query('reminder_schedule') == 'true') {
+            $data['reminder_schedule'] = (string) $invoice->reminderSchedule();
+        }
+
+        return $data;
+
     }
 }

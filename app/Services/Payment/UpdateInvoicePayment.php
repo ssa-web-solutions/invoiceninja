@@ -38,7 +38,7 @@ class UpdateInvoicePayment
     {
         $paid_invoices = $this->payment_hash->invoices();
 
-        $invoices = Invoice::whereIn('id', $this->transformKeys(array_column($paid_invoices, 'invoice_id')))->withTrashed()->get();
+        $invoices = Invoice::query()->whereIn('id', $this->transformKeys(array_column($paid_invoices, 'invoice_id')))->withTrashed()->get();
         
         $client = $this->payment->client;
 
@@ -55,6 +55,8 @@ class UpdateInvoicePayment
                 $invoice->restore();
             }
 
+            // $has_partial = $invoice->hasPartial();
+
             if ($invoice->id == $this->payment_hash->fee_invoice_id) {
                 $paid_amount = $paid_invoice->amount + $this->payment_hash->fee_total;
             } else {
@@ -62,6 +64,8 @@ class UpdateInvoicePayment
             }
 
             $client->service()->updatePaidToDate($paid_amount); //always use the payment->amount
+
+            $has_partial = $invoice->hasPartial();
 
             /* Need to determine here is we have an OVER payment - if YES only apply the max invoice amount */
             if ($paid_amount > $invoice->partial && $paid_amount > $invoice->balance) {
@@ -76,12 +80,16 @@ class UpdateInvoicePayment
             $invoice->paid_to_date += $paid_amount;
             $invoice->save();
 
-            $invoice =  $invoice->service()
-                                ->clearPartial()
-                                ->updateStatus()
-                                ->touchPdf()
-                                ->workFlow()
-                                ->save();
+            $invoice_service = $invoice->service()
+                               ->clearPartial()
+                               ->updateStatus()
+                               ->workFlow();
+
+            if ($has_partial) {
+                $invoice_service->checkReminderStatus();
+            }
+                            
+            $invoice = $invoice_service->save();
             
             if ($invoice->is_proforma) {
                 //keep proforma's hidden

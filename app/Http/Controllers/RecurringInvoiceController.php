@@ -33,7 +33,6 @@ use App\Utils\Ninja;
 use App\Utils\Traits\MakesHash;
 use App\Utils\Traits\SavesDocuments;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Class RecurringInvoiceController.
@@ -154,7 +153,11 @@ class RecurringInvoiceController extends BaseController
      */
     public function create(CreateRecurringInvoiceRequest $request)
     {
-        $recurring_invoice = RecurringInvoiceFactory::create(auth()->user()->company()->id, auth()->user()->id);
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+
+        $recurring_invoice = RecurringInvoiceFactory::create($user->company()->id, $user->id);
+        $recurring_invoice->auto_bill = $user->company()->settings->auto_bill;
 
         return $this->itemResponse($recurring_invoice);
     }
@@ -200,7 +203,10 @@ class RecurringInvoiceController extends BaseController
      */
     public function store(StoreRecurringInvoiceRequest $request)
     {
-        $recurring_invoice = $this->recurring_invoice_repo->save($request->all(), RecurringInvoiceFactory::create(auth()->user()->company()->id, auth()->user()->id));
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+
+        $recurring_invoice = $this->recurring_invoice_repo->save($request->all(), RecurringInvoiceFactory::create($user->company()->id, $user->id));
 
         $recurring_invoice->service()
                           ->triggeredActions($request)
@@ -381,7 +387,7 @@ class RecurringInvoiceController extends BaseController
 
         $recurring_invoice->service()
                           ->triggeredActions($request)
-                          ->deletePdf()
+                        //   ->deletePdf()
                           ->save();
 
         event(new RecurringInvoiceWasUpdated($recurring_invoice, $recurring_invoice->company, Ninja::eventVars(auth()->user() ? auth()->user()->id : null)));
@@ -406,18 +412,21 @@ class RecurringInvoiceController extends BaseController
      */
     public function bulk(BulkRecurringInvoiceRequest $request)
     {
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+
         $percentage_increase = request()->has('percentage_increase') ? request()->input('percentage_increase') : 0;
 
         if (in_array($request->action, ['increase_prices', 'update_prices'])) {
-            UpdateRecurring::dispatch($request->ids, auth()->user()->company(), auth()->user(), $request->action, $percentage_increase);
+            UpdateRecurring::dispatch($request->ids, $user->company(), $user, $request->action, $percentage_increase);
 
             return response()->json(['message' => 'Update in progress.'], 200);
         }
 
         $recurring_invoices = RecurringInvoice::withTrashed()->find($request->ids);
 
-        $recurring_invoices->each(function ($recurring_invoice, $key) use ($request) {
-            if (auth()->user()->can('edit', $recurring_invoice)) {
+        $recurring_invoices->each(function ($recurring_invoice, $key) use ($request, $user) {
+            if ($user->can('edit', $recurring_invoice)) {
                 $this->performAction($recurring_invoice, $request->action, true);
             }
         });
@@ -551,7 +560,7 @@ class RecurringInvoiceController extends BaseController
         }
 
         if ($request->has('documents')) {
-            $this->saveDocuments($request->file('documents'), $recurring_invoice);
+            $this->saveDocuments($request->file('documents'), $recurring_invoice, $request->input('is_public', true));
         }
 
         return $this->itemResponse($recurring_invoice->fresh());
@@ -565,10 +574,13 @@ class RecurringInvoiceController extends BaseController
             return response()->json(['message' => 'no record found'], 400);
         }
 
-        $contact = $invitation->contact;
         $invoice = $invitation->recurring_invoice;
+        
+        \Illuminate\Support\Facades\App::setLocale($invitation->contact->preferredLocale());
 
-        $file = $invoice->service()->getInvoicePdf($contact);
+        $file_name = $invoice->numberFormatter().'.pdf';
+
+        $file = (new \App\Jobs\Entity\CreateRawPdf($invitation))->handle();
 
         $headers = ['Content-Type' => 'application/pdf'];
 
@@ -577,8 +589,9 @@ class RecurringInvoiceController extends BaseController
         }
 
         return response()->streamDownload(function () use ($file) {
-            echo Storage::get($file);
-        }, basename($file), $headers);
+            echo $file;
+        }, $file_name, $headers);
+
     }
 
 }

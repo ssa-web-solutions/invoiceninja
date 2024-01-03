@@ -229,7 +229,7 @@ class CompanySettings extends BaseSettings
     public $require_quote_signature = false;  //@TODO ben to confirm
 
     //email settings
-    public $email_sending_method = 'default'; //enum 'default','gmail','office365' 'client_postmark', 'client_mailgun'//@implemented
+    public $email_sending_method = 'default'; //enum 'default','gmail','office365' 'client_postmark', 'client_mailgun' //@implemented
 
     public $gmail_sending_user_id = '0'; //@implemented
 
@@ -481,11 +481,30 @@ class CompanySettings extends BaseSettings
 
     public $enable_e_invoice = false;
 
+    public $delivery_note_design_id = '';
+    
+    public $statement_design_id = '';
+    
+    public $payment_receipt_design_id = '';
+
+    public $payment_refund_design_id = '';
+
+    public $classification = ''; // individual, business, partnership, trust, charity, government, other
+
+    public $payment_email_all_contacts = false;
+
     public static $casts = [
-        'enable_e_invoice'                   => 'bool', 
+        'payment_email_all_contacts'         => 'bool',
+        'statement_design_id'                => 'string',
+        'delivery_note_design_id'            => 'string',
+        'payment_receipt_design_id'          => 'string',
+        'payment_refund_design_id'           => 'string',
+        'classification'                     => 'string',
+        'enable_e_invoice'                   => 'bool',
+        'classification'                     => 'string',
         'default_expense_payment_type_id'    => 'string',
-        'e_invoice_type'                     => 'string',    
-        'mailgun_endpoint'                   => 'string',    
+        'e_invoice_type'                     => 'string',
+        'mailgun_endpoint'                   => 'string',
         'client_initiated_payments'          => 'bool',
         'client_initiated_payments_minimum'  => 'float',
         'sync_invoice_quote_columns'         => 'bool',
@@ -765,20 +784,22 @@ class CompanySettings extends BaseSettings
         'quote_design_id',
         'credit_design_id',
         'purchase_order_design_id',
+        'statement_design_id',
+        'delivery_note_design_id',
     ];
 
-    /**
-     * Cast object values and return entire class
-     * prevents missing properties from not being returned
-     * and always ensure an up to date class is returned.
-     *
-     * @param $obj
-     * @deprecated
-     */
-    public function __construct()
-    {
-        //	parent::__construct($obj);
-    }
+    // /**
+    //  * Cast object values and return entire class
+    //  * prevents missing properties from not being returned
+    //  * and always ensure an up to date class is returned.
+    //  *
+    //  * @param $obj
+    //  * @deprecated
+    //  */
+    // public function __construct()
+    // {
+    //     //	parent::__construct($obj);
+    // }
 
     /**
      * Provides class defaults on init.
@@ -812,14 +833,14 @@ class CompanySettings extends BaseSettings
      * need to provide a fallback catch on old settings objects which will
      * set new properties to the object prior to being returned.
      *
-     * @param $settings
+     * @param \stdClass $settings
      *
      * @return stdClass
      */
     public static function setProperties($settings): stdClass
     {
         $company_settings = (object) get_class_vars(self::class);
-
+        
         foreach ($company_settings as $key => $value) {
             if (! property_exists($settings, $key)) {
                 $settings->{$key} = self::castAttribute($key, $company_settings->{$key});
@@ -838,10 +859,29 @@ class CompanySettings extends BaseSettings
     {
         $notification = new stdClass;
         $notification->email = [];
+        $notification->email = ['invoice_sent_all'];
+
         // $notification->email = ['all_notifications'];
 
         return $notification;
     }
+
+    /**
+     * Stubs the notification defaults
+     *
+     * @return stdClass
+     */
+    public static function notificationAdminDefaults() :stdClass
+    {
+        $notification = new stdClass;
+        $notification->email = [];
+        $notification->email = ['invoice_sent_all'];
+
+        return $notification;
+    }
+
+
+
 
     /**
      * Defines entity variables for PDF generation
@@ -976,6 +1016,15 @@ class CompanySettings extends BaseSettings
                 '$credit.date',
                 '$total',
                 '$credit.balance',
+            ],
+            'statement_details' => [
+                '$statement_date',
+                '$balance'
+            ],
+            'delivery_note_columns' => [
+                '$product.item',
+                '$product.description',
+                '$product.quantity',
             ],
         ];
 

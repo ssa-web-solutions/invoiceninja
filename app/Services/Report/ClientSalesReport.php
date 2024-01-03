@@ -11,16 +11,16 @@
 
 namespace App\Services\Report;
 
-use App\Utils\Ninja;
-use App\Utils\Number;
+use App\Export\CSV\BaseExport;
+use App\Libraries\MultiDB;
 use App\Models\Client;
-use League\Csv\Writer;
 use App\Models\Company;
 use App\Models\Invoice;
-use App\Libraries\MultiDB;
-use App\Export\CSV\BaseExport;
+use App\Utils\Ninja;
+use App\Utils\Number;
 use App\Utils\Traits\MakesDates;
 use Illuminate\Support\Facades\App;
+use League\Csv\Writer;
 
 class ClientSalesReport extends BaseExport
 {
@@ -99,7 +99,7 @@ class ClientSalesReport extends BaseExport
 
     private function buildRow(Client $client): array
     {
-        $query = Invoice::where('client_id', $client->id)
+        $query = Invoice::query()->where('client_id', $client->id)
                                 ->whereIn('status_id', [Invoice::STATUS_SENT, Invoice::STATUS_PARTIAL, Invoice::STATUS_PAID]);
     
         $query = $this->addDateRange($query);

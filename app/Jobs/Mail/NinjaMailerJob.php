@@ -51,7 +51,7 @@ class NinjaMailerJob implements ShouldQueue
 
     public $override;
 
-    /* @var Company $company*/
+    /** @var null|\App\Models\Company $company  **/
     public ?Company $company;
 
     private $mailer;
@@ -83,15 +83,15 @@ class NinjaMailerJob implements ShouldQueue
         MultiDB::setDb($this->nmo->company->db);
 
         /* Serializing models from other jobs wipes the primary key */
-        $this->company = Company::where('company_key', $this->nmo->company->company_key)->first();
+        $this->company = Company::query()->where('company_key', $this->nmo->company->company_key)->first();
+
+        /* Set the email driver */
+        $this->setMailDriver();
 
         /* If any pre conditions fail, we return early here */
         if (!$this->company || $this->preFlightChecksFail()) {
             return;
         }
-
-        /* Set the email driver */
-        $this->setMailDriver();
 
         /* Run time we set Reply To Email*/
         if (strlen($this->nmo->settings->reply_to_email) > 1) {
@@ -140,11 +140,9 @@ class NinjaMailerJob implements ShouldQueue
             /* Count the amount of emails sent across all the users accounts */
             Cache::increment("email_quota".$this->company->account->key);
 
-            LightLogs::create(new EmailSuccess($this->nmo->company->company_key))
+            LightLogs::create(new EmailSuccess($this->nmo->company->company_key, $this->nmo->mailable->subject))
                      ->send();
 
-            $this->nmo = null;
-            $this->company = null;
         } catch(\Symfony\Component\Mime\Exception\RfcComplianceException $e) {
             nlog("Mailer failed with a Logic Exception {$e->getMessage()}");
             $this->fail();
@@ -166,7 +164,7 @@ class NinjaMailerJob implements ShouldQueue
              * this merges a text string with a json object
              * need to harvest the ->Message property using the following
              */
-            if (stripos($e->getMessage(), 'code 406') || stripos($e->getMessage(), 'code 300') || stripos($e->getMessage(), 'code 413')) {
+            if (stripos($e->getMessage(), 'code 300') || stripos($e->getMessage(), 'code 413')) {
                 $message = "Either Attachment too large, or recipient has been suppressed.";
 
                 $this->fail();
@@ -175,6 +173,20 @@ class NinjaMailerJob implements ShouldQueue
 
                 return;
             }
+
+            if (stripos($e->getMessage(), 'code 406')) {
+
+                $email = $this->nmo->to_user->email ?? '';
+
+                $message = "Recipient {$email} has been suppressed and cannot receive emails from you.";
+
+                $this->fail();
+                $this->logMailError($message, $this->company->clients()->first());
+                $this->cleanUpMailers();
+
+                return;
+            }
+
 
             //only report once, not on all tries
             if ($this->attempts() == $this->tries) {
@@ -194,6 +206,9 @@ class NinjaMailerJob implements ShouldQueue
 
             $this->release($this->backoff()[$this->attempts()-1]);
         }
+
+        $this->nmo = null;
+        $this->company = null;
 
         /*Clean up mailers*/
         $this->cleanUpMailers();
@@ -243,19 +258,20 @@ class NinjaMailerJob implements ShouldQueue
             case 'gmail':
                 $this->mailer = 'gmail';
                 $this->setGmailMailer();
-                return;
+                return $this;
             case 'office365':
+            case 'microsoft':
                 $this->mailer = 'office365';
                 $this->setOfficeMailer();
-                return;
+                return $this;
             case 'client_postmark':
                 $this->mailer = 'postmark';
                 $this->setPostmarkMailer();
-                return;
+                return $this;
             case 'client_mailgun':
                 $this->mailer = 'mailgun';
                 $this->setMailgunMailer();
-                return;
+                return $this;
 
             default:
                 break;
@@ -264,6 +280,8 @@ class NinjaMailerJob implements ShouldQueue
         if (Ninja::isSelfHost()) {
             $this->setSelfHostMultiMailer();
         }
+
+        return $this;
     }
 
     /**
@@ -488,7 +506,7 @@ class NinjaMailerJob implements ShouldQueue
      */
     private function preFlightChecksFail(): bool
     {
-        /* Always send regardless */ 
+        /* Always send regardless */
         if($this->override) {
             return false;
         }
@@ -509,7 +527,7 @@ class NinjaMailerJob implements ShouldQueue
         }
 
         /* GMail users are uncapped */
-        if (Ninja::isHosted() && ($this->nmo->settings->email_sending_method == 'gmail' || $this->nmo->settings->email_sending_method == 'office365')) {
+        if (Ninja::isHosted() && (in_array($this->nmo->settings->email_sending_method, ['gmail', 'office365', 'client_postmark', 'client_mailgun']))) {
             return false;
         }
 
@@ -549,7 +567,7 @@ class NinjaMailerJob implements ShouldQueue
      * Logs any errors to the SystemLog
      *
      * @param  string $errors
-     * @param  App\Models\User | App\Models\Client | null $recipient_object
+     * @param  \App\Models\User | \App\Models\Client | null $recipient_object
      * @return void
      */
     private function logMailError($errors, $recipient_object) :void

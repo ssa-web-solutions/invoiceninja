@@ -1,6 +1,6 @@
 <?php
 
-$LANG = array(
+$lang = [
     'organization' => 'Organisation',
     'name' => 'Name',
     'website' => 'Website',
@@ -761,7 +761,7 @@ $LANG = array(
     'activity_7' => ':contact viewed invoice :invoice for :client',
     'activity_8' => ':user archived invoice :invoice',
     'activity_9' => ':user deleted invoice :invoice',
-    'activity_10' => ':contact entered payment :payment for :payment_amount on invoice :invoice for :client',
+    'activity_10' => ':user entered payment :payment for :payment_amount on invoice :invoice for :client',
     'activity_11' => ':user updated payment :payment',
     'activity_12' => ':user archived payment :payment',
     'activity_13' => ':user deleted payment :payment',
@@ -5046,9 +5046,7 @@ $LANG = array(
     'oauth_mail' => 'OAuth / Mail',
     'preferences' => 'Preferences',
     'analytics' => 'Analytics',
-);
+];
 
 
-return $LANG;
-
-?>
+return $lang;

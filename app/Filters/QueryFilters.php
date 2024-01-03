@@ -11,7 +11,6 @@
 
 namespace App\Filters;
 
-//use Illuminate\Database\Query\Builder;
 use App\Utils\Traits\MakesHash;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -73,8 +72,8 @@ abstract class QueryFilters
     /**
      * Apply the filters to the builder.
      *
-     * @param  Builder $builder
-     * @return Builder
+     * @param  \Illuminate\Database\Eloquent\Builder $builder
+     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function apply(Builder $builder)
     {
@@ -240,7 +239,11 @@ abstract class QueryFilters
         }
     }
 
-
+    /**
+     *
+     * @param string $value
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
     public function is_deleted($value = 'true')
     {
         if ($value == 'true') {
@@ -287,6 +290,31 @@ abstract class QueryFilters
 
         return $this->builder;
     }
+
+    /**
+     * @return Builder
+     */
+    public function without_deleted_clients(): Builder
+    {
+        return $this->builder->where(function ($query) {
+            $query->whereHas('client', function ($sub_query) {
+                $sub_query->where('is_deleted', 0)->where('deleted_at', null);
+            })->orWhere('client_id', null);
+        });
+    }
+
+    /**
+     * @return Builder
+     */
+    public function without_deleted_vendors(): Builder
+    {
+        return $this->builder->where(function ($query) {
+            $query->whereHas('vendor', function ($sub_query) {
+                $sub_query->where('is_deleted', 0)->where('deleted_at', null);
+            })->orWhere('vendor_id', null);
+        });
+    }
+
 
     public function with(string $value = ''): Builder
     {

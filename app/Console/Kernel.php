@@ -19,6 +19,7 @@ use App\Jobs\Cron\UpdateCalculatedFields;
 use App\Jobs\Invoice\InvoiceCheckLateWebhook;
 use App\Jobs\Ninja\AdjustEmailQuota;
 use App\Jobs\Ninja\BankTransactionSync;
+use App\Jobs\Ninja\CheckACHStatus;
 use App\Jobs\Ninja\CompanySizeCheck;
 use App\Jobs\Ninja\QueueSize;
 use App\Jobs\Ninja\SystemMaintenance;
@@ -107,7 +108,10 @@ class Kernel extends ConsoleKernel
             $schedule->job(new AdjustEmailQuota)->dailyAt('23:30')->withoutOverlapping();
 
             /* Pulls in bank transactions from third party services */
-            $schedule->job(new BankTransactionSync)->dailyAt('04:10')->withoutOverlapping()->name('bank-trans-sync-job')->onOneServer();
+            $schedule->job(new BankTransactionSync)->everyFourHours()->withoutOverlapping()->name('bank-trans-sync-job')->onOneServer();
+
+            /* Checks ACH verification status and updates state to authorize when verified */
+            $schedule->job(new CheckACHStatus)->everySixHours()->withoutOverlapping()->name('ach-status-job')->onOneServer();
 
             $schedule->command('ninja:check-data --database=db-ninja-01')->dailyAt('02:10')->withoutOverlapping()->name('check-data-db-1-job')->onOneServer();
 

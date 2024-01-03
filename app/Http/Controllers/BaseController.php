@@ -516,19 +516,11 @@ class BaseController extends Controller
                         $query->where('bank_transactions.user_id', $user->id);
                     }
                 },
-                'company.bank_transaction_rules'=> function ($query) use ($updated_at, $user) {
-                    $query->where('updated_at', '>=', $updated_at);
-
-                    if (! $user->isAdmin()) {
-                        $query->where('bank_transaction_rules.user_id', $user->id);
-                    }
+                'company.bank_transaction_rules'=> function ($query) {
+                    $query->whereNotNull('updated_at');
                 },
-                'company.task_schedulers'=> function ($query) use ($updated_at, $user) {
-                    $query->where('updated_at', '>=', $updated_at);
-
-                    if (! $user->isAdmin()) {
-                        $query->where('schedulers.user_id', $user->id);
-                    }
+                'company.task_schedulers'=> function ($query) {
+                    $query->whereNotNull('updated_at');
                 },
             ]
         );
@@ -539,9 +531,8 @@ class BaseController extends Controller
             $paginator = $query->paginate($limit);
 
             /** @phpstan-ignore-next-line */
-            $query = $paginator->getCollection(); /** @phpstan-ignore-line */
-
-
+            $query = $paginator->getCollection(); // @phpstan-ignore-line
+            
             $resource = new Collection($query, $transformer, $this->entity_type);
 
             $resource->setPaginator(new IlluminatePaginatorAdapter($paginator));
@@ -627,7 +618,7 @@ class BaseController extends Controller
                     }
                 },
                 'company.bank_transaction_rules'=> function ($query) use ($user) {
-                    if (! $user->isAdmin()) {
+                    if (! $user->isAdmin() && !$user->hasIntersectPermissions(['create_bank_transaction','edit_bank_transaction','view_bank_transaction'])) {
                         $query->where('bank_transaction_rules.user_id', $user->id);
                     }
                 },
@@ -644,8 +635,9 @@ class BaseController extends Controller
 
             $paginator = $query->paginate($limit);
 
-            /** @phpstan-ignore-next-line */
-            $query = $paginator->getCollection();
+            /** @phpstan-ignore-next-line **/
+            $query = $paginator->getCollection();// @phpstan-ignore-line
+
             $resource = new Collection($query, $transformer, $this->entity_type);
             $resource->setPaginator(new IlluminatePaginatorAdapter($paginator));
         }
@@ -656,24 +648,6 @@ class BaseController extends Controller
         return $this->response($this->manager->createData($resource)->toArray());
     }
 
-    /**
-     * In case a user is not an admin and is
-     * able to access multiple companies, then we
-     * need to pass back the mini load only
-     *
-     * @deprecated
-     * @return bool
-     */
-    // private function complexPermissionsUser(): bool
-    // {
-    //     //if the user is attached to more than one company AND they are not an admin across all companies
-    //     if (auth()->user()->company_users()->count() > 1 && (auth()->user()->company_users()->where('is_admin', 1)->count() != auth()->user()->company_users()->count())) {
-    //         return true;
-    //     }
-
-    //     return false;
-    // }
-    
     /**
      * Passes back the miniloaded data response
      *
@@ -911,12 +885,13 @@ class BaseController extends Controller
 
             $paginator = $query->paginate($limit);
 
-            /** @phpstan-ignore-next-line */
-            $query = $paginator->getCollection();
+            /** @phpstan-ignore-next-line **/
+            $query = $paginator->getCollection();// @phpstan-ignore-line
+
 
             $resource = new Collection($query, $transformer, $this->entity_type);
             $resource->setPaginator(new IlluminatePaginatorAdapter($paginator));
-        } 
+        }
         
         // else {
         //     $resource = new Collection($query, $transformer, $this->entity_type);
@@ -951,7 +926,11 @@ class BaseController extends Controller
                 if ($this->entity_type == BankIntegration::class && !$user->isSuperUser() && $user->hasIntersectPermissions(['create_bank_transaction','edit_bank_transaction','view_bank_transaction'])) {
                     $query->exclude(["balance"]);
                 } //allows us to selective display bank integrations back to the user if they can view / create bank transactions but without the bank balance being present in the response
-                else {
+                elseif($this->entity_type == TaxRate::class && $user->hasIntersectPermissions(['create_invoice','edit_invoice','create_quote','edit_quote','create_purchase_order','edit_purchase_order'])) {
+                    // need to show tax rates if the user has the ability to create documents.
+                } elseif($this->entity_type == ExpenseCategory::class && $user->hasPermission('create_expense')) {
+                    // need to show expense categories if the user has the ability to create expenses.
+                } else {
                     $query->where('user_id', '=', $user->id);
                 }
             } elseif (in_array($this->entity_type, [Design::class, GroupSetting::class, PaymentTerm::class, TaskStatus::class])) {
@@ -976,13 +955,11 @@ class BaseController extends Controller
         if ($query instanceof Builder) {
             $limit = $this->resolveQueryLimit();
             $paginator = $query->paginate($limit);
-            $query = $paginator->getCollection();
+            $query = $paginator->getCollection();// @phpstan-ignore-line
+
             $resource = new Collection($query, $transformer, $this->entity_type);
             $resource->setPaginator(new IlluminatePaginatorAdapter($paginator));
         }
-        //  else {
-        //     $resource = new Collection($query, $transformer, $this->entity_type);
-        // }
 
         return $this->response($this->manager->createData($resource)->toArray());
     }
@@ -1092,7 +1069,7 @@ class BaseController extends Controller
                 $data = $this->first_load;
             }
         } else {
-            $included = request()->input('include');
+            $included = request()->input('include', '');
             $included = explode(',', $included);
 
             foreach ($included as $include) {
@@ -1120,8 +1097,8 @@ class BaseController extends Controller
             /** @var \App\Models\Account $account */
 
             //always redirect invoicing.co to invoicing.co
-            if (Ninja::isHosted() && !in_array(request()->getSchemeAndHttpHost(), ['https://staging.invoicing.co', 'https://invoicing.co', 'https://demo.invoicing.co', 'https://invoiceninja.net'])) {
-                return redirect()->secure('https://invoicing.co');
+            if (Ninja::isHosted() && !in_array(request()->getSchemeAndHttpHost(), ['https://staging.invoicing.co', 'https://invoicing.co', 'https://demo.invoicing.co', 'https://invoiceninja.net', config('ninja.app_url')])) {
+                return redirect()->secure(config('ninja.app_url'));
             }
 
             if (config('ninja.require_https') && ! request()->isSecure()) {
@@ -1151,10 +1128,10 @@ class BaseController extends Controller
             $data['white_label'] = Ninja::isSelfHost() ? $account->isPaid() : false;
 
             //pass referral code to front end
-            $data['rc'] = request()->has('rc') ? request()->input('rc') : '';
-            $data['build'] = request()->has('build') ? request()->input('build') : '';
-            $data['login'] = request()->has('login') ? request()->input('login') : 'false';
-            $data['signup'] = request()->has('signup') ? request()->input('signup') : 'false';
+            $data['rc'] = request()->has('rc') && is_string(request()->input('rc')) ? request()->input('rc') : '';
+            $data['build'] = request()->has('build') && is_string(request()->input('build')) ? request()->input('build') : '';
+            $data['login'] = request()->has('login') && is_string(request()->input('input')) ? request()->input('login') : 'false';
+            $data['signup'] = request()->has('signup') && is_string(request()->input('signup')) ? request()->input('signup') : 'false';
             $data['canvas_path'] = $canvas_path;
 
             if (request()->session()->has('login')) {
@@ -1207,8 +1184,6 @@ class BaseController extends Controller
                 return 'main.next.dart.js';
             case 'profile':
                 return 'main.profile.dart.js';
-            case 'html':
-                return 'main.html.dart.js';
             default:
                 return 'main.foss.dart.js';
         }

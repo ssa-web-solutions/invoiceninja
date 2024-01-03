@@ -44,6 +44,7 @@ class Phantom
     public function generate($invitation, $return_pdf = false)
     {
         $entity = false;
+        $path = '';
 
         if ($invitation instanceof InvoiceInvitation) {
             $entity = 'invoice';
@@ -106,7 +107,7 @@ class Phantom
         }
 
         if (! Storage::disk(config('filesystems.default'))->exists($path)) {
-            Storage::disk(config('filesystems.default'))->makeDirectory($path, 0775);
+            Storage::disk(config('filesystems.default'))->makeDirectory($path);
         }
 
         $instance = Storage::disk(config('filesystems.default'))->put($file_path, $pdf);
@@ -213,6 +214,8 @@ class Phantom
             'options' => [
                 'all_pages_header' => $entity_obj->client->getSetting('all_pages_header'),
                 'all_pages_footer' => $entity_obj->client->getSetting('all_pages_footer'),
+                'client' => $entity_obj->client,
+                'entity' => $entity_obj,
             ],
             'process_markdown' => $entity_obj->client->company->markdown_enabled,
         ];
@@ -229,4 +232,5 @@ class Phantom
 
         return view('pdf.html', $data);
     }
+
 }

@@ -34,15 +34,20 @@ class RecurringInvoiceFilters extends QueryFilters
         }
 
         return  $this->builder->where(function ($query) use ($filter) {
-              $query->where('date', 'like', '%'.$filter.'%')
-                    ->orWhere('amount', 'like', '%'.$filter.'%')
-                    ->orWhere('custom_value1', 'like', '%'.$filter.'%')
-                    ->orWhere('custom_value2', 'like', '%'.$filter.'%')
-                    ->orWhere('custom_value3', 'like', '%'.$filter.'%')
-                    ->orWhere('custom_value4', 'like', '%'.$filter.'%')
-                    ->orWhereHas('client', function ($q) use ($filter) {
-                        $q->where('name', 'like', '%'.$filter.'%');
-                    });
+            $query->where('date', 'like', '%'.$filter.'%')
+                  ->orWhere('amount', 'like', '%'.$filter.'%')
+                  ->orWhere('custom_value1', 'like', '%'.$filter.'%')
+                  ->orWhere('custom_value2', 'like', '%'.$filter.'%')
+                  ->orWhere('custom_value3', 'like', '%'.$filter.'%')
+                  ->orWhere('custom_value4', 'like', '%'.$filter.'%')
+                  ->orWhereHas('client', function ($q) use ($filter) {
+                      $q->where('name', 'like', '%'.$filter.'%');
+                  })
+                  ->orWhereHas('client.contacts', function ($q) use ($filter) {
+                      $q->where('first_name', 'like', '%'.$filter.'%')
+                        ->orWhere('last_name', 'like', '%'.$filter.'%')
+                        ->orWhere('email', 'like', '%'.$filter.'%');
+                  });
         });
     }
 
@@ -114,6 +119,13 @@ class RecurringInvoiceFilters extends QueryFilters
         if (!is_array($sort_col) || count($sort_col) != 2) {
             return $this->builder;
         }
+
+
+        if ($sort_col[0] == 'client_id') {
+            return $this->builder->orderBy(\App\Models\Client::select('name')
+                    ->whereColumn('clients.id', 'recurring_invoices.client_id'), $sort_col[1]);
+        }
+
 
         return $this->builder->orderBy($sort_col[0], $sort_col[1]);
     }

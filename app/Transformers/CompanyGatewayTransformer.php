@@ -12,6 +12,7 @@
 namespace App\Transformers;
 
 use App\Models\CompanyGateway;
+use App\Models\Gateway;
 use App\Models\SystemLog;
 use App\Utils\Traits\MakesHash;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -28,13 +29,13 @@ class CompanyGatewayTransformer extends EntityTransformer
     /**
      * @var array
      */
-    protected $defaultIncludes = [
+    protected array $defaultIncludes = [
     ];
 
     /**
      * @var array
      */
-    protected $availableIncludes = [
+    protected array $availableIncludes = [
         'system_logs',
         'gateway',
     ];

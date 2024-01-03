@@ -41,6 +41,8 @@ class ClientTest extends TestCase
     use DatabaseTransactions;
     use MockAccountData;
 
+    public $faker;
+
     protected function setUp() :void
     {
         parent::setUp();
@@ -63,47 +65,74 @@ class ClientTest extends TestCase
         $this->makeTestData();
     }
 
+    public function testStoreClientFixes()
+    {
+        $data = [
+            "contacts" => [
+            [
+            "email" => "tenda@gmail.com",
+            "first_name" => "Tenda",
+            "is_primary" => true,
+            "last_name" => "Bavuma",
+            "password" => null,
+            "send_email" => true
+            ],
+        ],
+            "country_id" => "356",
+            "display_name" => "Tenda Bavuma",
+            "name" => "Tenda Bavuma",
+            "shipping_country_id" => "356",
+            ];
+
+
+        $response = $this->withHeaders([
+            'X-API-SECRET' => config('ninja.api_secret'),
+            'X-API-TOKEN' => $this->token,
+        ])->postJson('/api/v1/clients', $data);
+
+        $response->assertStatus(200);
+    }
 
     public function testClientMergeContactDrop()
     {
 
         $c = Client::factory()->create(['user_id' => $this->user->id, 'company_id' => $this->company->id]);
 
-            ClientContact::factory()->create([
-                'user_id' => $this->user->id,
-                'client_id' => $c->id,
-                'company_id' => $this->company->id,
-                'is_primary' => 1,
-            ]);
+        ClientContact::factory()->create([
+            'user_id' => $this->user->id,
+            'client_id' => $c->id,
+            'company_id' => $this->company->id,
+            'is_primary' => 1,
+        ]);
 
-            ClientContact::factory()->create([
-                'user_id' => $this->user->id,
-                'client_id' => $c->id,
-                'company_id' => $this->company->id,
-            ]);
+        ClientContact::factory()->create([
+            'user_id' => $this->user->id,
+            'client_id' => $c->id,
+            'company_id' => $this->company->id,
+        ]);
 
 
         $c1 = Client::factory()->create(['user_id' => $this->user->id, 'company_id' => $this->company->id]);
 
-            ClientContact::factory()->create([
-                'user_id' => $this->user->id,
-                'client_id' => $c1->id,
-                'company_id' => $this->company->id,
-                'is_primary' => 1,
-            ]);
+        ClientContact::factory()->create([
+            'user_id' => $this->user->id,
+            'client_id' => $c1->id,
+            'company_id' => $this->company->id,
+            'is_primary' => 1,
+        ]);
 
-            ClientContact::factory()->create([
-                'user_id' => $this->user->id,
-                'client_id' => $c1->id,
-                'company_id' => $this->company->id,
-            ]);
+        ClientContact::factory()->create([
+            'user_id' => $this->user->id,
+            'client_id' => $c1->id,
+            'company_id' => $this->company->id,
+        ]);
 
-            ClientContact::factory()->create([
-                'user_id' => $this->user->id,
-                'client_id' => $c1->id,
-                'company_id' => $this->company->id,
-                'email' => ''
-            ]);
+        ClientContact::factory()->create([
+            'user_id' => $this->user->id,
+            'client_id' => $c1->id,
+            'company_id' => $this->company->id,
+            'email' => ''
+        ]);
           
 
         $this->assertEquals(2, $c->contacts->count());
@@ -113,7 +142,7 @@ class ClientTest extends TestCase
 
         $c = $c->fresh();
 
-        nlog($c->contacts->pluck('email'));
+        // nlog($c->contacts->pluck('email'));
 
         $this->assertEquals(4, $c->contacts->count());
 

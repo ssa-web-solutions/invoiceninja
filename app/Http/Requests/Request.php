@@ -20,7 +20,7 @@ class Request extends FormRequest
     use MakesHash;
     use RuntimeFormRequest;
 
-    protected $file_validation = 'sometimes|file|mimes:png,ai,jpeg,tiff,pdf,gif,psd,txt,doc,xls,ppt,xlsx,docx,pptx,webp|max:20000';
+    protected $file_validation = 'sometimes|file|mimes:png,ai,jpeg,tiff,pdf,gif,psd,txt,doc,xls,ppt,xlsx,docx,pptx,webp,xml,zip,csv,ods,odt,odp|max:100000';
     /**
      * Get the validation rules that apply to the request.
      *
@@ -63,14 +63,20 @@ class Request extends FormRequest
 
     private function invoice_id($rules)
     {
-        $rules['invoice_id'] = 'bail|nullable|sometimes|exists:invoices,id,company_id,'.auth()->user()->company()->id.',client_id,'.$this['client_id'];
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+
+        $rules['invoice_id'] = 'bail|nullable|sometimes|exists:invoices,id,company_id,'.$user->company()->id.',client_id,'.$this['client_id'];
 
         return $rules;
     }
 
     private function vendor_id($rules)
     {
-        $rules['vendor_id'] = 'bail|nullable|sometimes|exists:vendors,id,company_id,'.auth()->user()->company()->id;
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+
+        $rules['vendor_id'] = 'bail|nullable|sometimes|exists:vendors,id,company_id,'.$user->company()->id;
 
         return $rules;
     }
@@ -174,7 +180,7 @@ class Request extends FormRequest
                 }
 
                 //Filter the client contact password - if it is sent with ***** we should ignore it!
-                if (isset($contact['password'])) {
+                if (isset($contact['password']) && is_string($contact['password'])) {
                     if (strlen($contact['password']) == 0) {
                         $input['contacts'][$key]['password'] = '';
                     } else {
@@ -199,6 +205,17 @@ class Request extends FormRequest
     {
     }
 
+    /**
+     * Convert to boolean
+     *
+     * @param $bool
+     * @return bool
+     */
+    public function toBoolean($bool): bool
+    {
+        return filter_var($bool, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+    }
+    
     public function checkTimeLog(array $log): bool
     {
         if (count($log) == 0) {
