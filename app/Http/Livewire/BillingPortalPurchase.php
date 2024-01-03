@@ -23,7 +23,6 @@ use App\Models\Invoice;
 use App\Models\Subscription;
 use App\Repositories\ClientContactRepository;
 use App\Repositories\ClientRepository;
-use App\Services\Subscription\SubscriptionService;
 use App\Utils\Ninja;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -62,9 +61,9 @@ class BillingPortalPurchase extends Component
     public $password;
 
     /**
-     * Instance of subscription.
+     * This arrives as an int and we resolve in the mount method
      *
-     * @var Subscription
+     * @var int|Subscription
      */
     public $subscription;
 
@@ -78,7 +77,6 @@ class BillingPortalPurchase extends Component
     /**
      * Rules for validating the form.
      *
-     * @var \string[][]
      */
     protected $rules = [
         'email' => ['required', 'email'],
@@ -156,7 +154,7 @@ class BillingPortalPurchase extends Component
     public $request_data;
 
     /**
-     * @var string
+     * @var float
      */
     public $price;
 
@@ -187,7 +185,7 @@ class BillingPortalPurchase extends Component
     {
         MultiDB::setDb($this->db);
 
-        $this->subscription = Subscription::with('company')->find($this->subscription);
+        $this->subscription = Subscription::query()->with('company')->find($this->subscription);
 
         $this->company = $this->subscription->company;
 
@@ -426,8 +424,8 @@ class BillingPortalPurchase extends Component
         return $this->subscription->service()->startTrial([
             'email' => $this->email ?? $this->contact->email,
             'quantity' => $this->quantity,
-            'contact_id' => $this->contact->id,
-            'client_id' => $this->contact->client->id,
+            'contact_id' => $this->contact->hashed_id,
+            'client_id' => $this->contact->client->hashed_id,
         ]);
     }
 

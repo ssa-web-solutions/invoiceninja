@@ -148,6 +148,8 @@ class SystemLog extends Model
 
     const TYPE_RAZORPAY = 322;
 
+    const TYPE_PAYPAL_PPCP = 323;
+
     const TYPE_QUOTA_EXCEEDED = 400;
 
     const TYPE_UPSTREAM_FAILURE = 401;
@@ -195,7 +197,10 @@ class SystemLog extends Model
      */
     public function scopeCompany($query)
     {
-        $query->where('company_id', auth()->user()->companyId());
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+
+        $query->where('company_id', $user->companyId());
 
         return $query;
     }

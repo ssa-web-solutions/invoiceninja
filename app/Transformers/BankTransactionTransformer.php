@@ -14,6 +14,8 @@ namespace App\Transformers;
 use App\Models\BankTransaction;
 use App\Models\Company;
 use App\Models\Expense;
+use App\Models\Payment;
+use App\Models\Vendor;
 use App\Utils\Traits\MakesHash;
 
 /**
@@ -26,13 +28,13 @@ class BankTransactionTransformer extends EntityTransformer
     /**
      * @var array
      */
-    protected $defaultIncludes = [
+    protected array $defaultIncludes = [
     ];
 
     /**
      * @var array
      */
-    protected $availableIncludes = [
+    protected array $availableIncludes = [
         'company',
         // 'expense',
         'payment',

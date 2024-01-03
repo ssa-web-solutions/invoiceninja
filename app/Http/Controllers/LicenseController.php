@@ -14,7 +14,6 @@ namespace App\Http\Controllers;
 use App\Models\Account;
 use App\Utils\CurlUtils;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Http;
 use stdClass;
@@ -91,7 +90,7 @@ class LicenseController extends BaseController
 
             if(substr($license_key, 0, 3) == 'v5_') {
                 return $this->v5ClaimLicense($license_key, $product_id);
-            } 
+            }
 
             $url = config('ninja.license_url')."/claim_license?license_key={$license_key}&product_id={$product_id}&get_date=true";
             $data = trim(CurlUtils::get($url));
@@ -137,7 +136,7 @@ class LicenseController extends BaseController
                 }
             } else {
                 $error = [
-                    'message' => trans('texts.white_label_license_error'),
+                    'message' => 'There was an issue connecting to the license server. Please check your network.',
                     'errors' => new stdClass,
                 ];
 

@@ -42,15 +42,15 @@ class SendEmail
             $this->reminder_template = $this->quote->calculateTemplate('quote');
         }
 
-
         $this->quote->service()->markSent()->save();
 
         $this->quote->invitations->each(function ($invitation) {
             if (! $invitation->contact->trashed() && $invitation->contact->email) {
                 EmailEntity::dispatch($invitation, $invitation->company, $this->reminder_template);
-
-                // MailEntity::dispatch($invitation, $invitation->company->db, $mo);
             }
         });
+
+
+
     }
 }

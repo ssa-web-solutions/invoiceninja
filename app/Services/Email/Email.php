@@ -75,7 +75,6 @@ class Email implements ShouldQueue
      */
     public function backoff()
     {
-        // return [10, 30, 60, 240];
         return [rand(10, 20), rand(30, 45), rand(60, 79), rand(160, 400)];
     }
 
@@ -87,6 +86,9 @@ class Email implements ShouldQueue
              ->initModels()
              ->setDefaults()
              ->buildMailable();
+
+        /** Ensure quota's on hosted platform are respected. :) */
+        $this->setMailDriver();
 
         if ($this->preFlightChecksFail()) {
             return;
@@ -138,7 +140,9 @@ class Email implements ShouldQueue
 
         $this->email_object->company = $this->company;
 
-        $this->email_object->client_id ? $this->email_object->settings  = $this->email_object->client->getMergedSettings() : $this->email_object->settings = $this->company->settings;
+        $this->email_object->client_id ? $this->email_object->settings = $this->email_object->client->getMergedSettings() : $this->email_object->settings = $this->company->settings;
+
+        // $this->email_object->client_id ? nlog("client settings") : nlog("company settings ");
 
         $this->email_object->whitelabel = $this->company->account->isPaid() ? true : false;
 
@@ -155,7 +159,7 @@ class Email implements ShouldQueue
     
     /**
      * Generates the correct set of variables
-     *
+     * @todo handle payment engine here also
      * @return self
      */
     private function resolveVariables(): self
@@ -227,7 +231,7 @@ class Email implements ShouldQueue
      */
     public function email()
     {
-        $this->setMailDriver();
+        // $this->setMailDriver();
 
         /* Init the mailer*/
         $mailer = Mail::mailer($this->mailer);
@@ -238,7 +242,6 @@ class Email implements ShouldQueue
         }
 
         if ($this->client_mailgun_secret) {
-
             $mailer->mailgun_config($this->client_mailgun_secret, $this->client_mailgun_domain, $this->client_mailgun_endpoint);
         }
 
@@ -250,8 +253,9 @@ class Email implements ShouldQueue
 
             Cache::increment("email_quota".$this->company->account->key);
 
-            LightLogs::create(new EmailSuccess($this->company->company_key))
+            LightLogs::create(new EmailSuccess($this->company->company_key, $this->mailable->subject))
                      ->send();
+
         } catch(\Symfony\Component\Mime\Exception\RfcComplianceException $e) {
             nlog("Mailer failed with a Logic Exception {$e->getMessage()}");
             $this->fail();
@@ -268,11 +272,27 @@ class Email implements ShouldQueue
             nlog("Mailer failed with {$e->getMessage()}");
             $message = $e->getMessage();
 
-            if (stripos($e->getMessage(), 'code 406') || stripos($e->getMessage(), 'code 300') || stripos($e->getMessage(), 'code 413')) {
+
+            if (stripos($e->getMessage(), 'code 300') || stripos($e->getMessage(), 'code 413')) {
                 $message = "Either Attachment too large, or recipient has been suppressed.";
 
                 $this->fail();
                 $this->logMailError($e->getMessage(), $this->company->clients()->first());
+                $this->cleanUpMailers();
+
+                return;
+            }
+
+            if (stripos($e->getMessage(), 'code 406')) {
+
+                $address_object = reset($this->email_object->to);
+
+                $email = $address_object->address ?? '';
+                
+                $message = "Recipient {$email} has been suppressed and cannot receive emails from you.";
+
+                $this->fail();
+                $this->logMailError($message, $this->company->clients()->first());
                 $this->cleanUpMailers();
 
                 return;
@@ -321,13 +341,13 @@ class Email implements ShouldQueue
         $this->cleanUpMailers();
     }
 
-   /**
-     * On the hosted platform we scan all outbound email for
-     * spam. This sequence processes the filters we use on all
-     * emails.
-     *
-     * @return bool
-     */
+    /**
+      * On the hosted platform we scan all outbound email for
+      * spam. This sequence processes the filters we use on all
+      * emails.
+      *
+      * @return bool
+      */
     public function preFlightChecksFail(): bool
     {
         /* Always send if disabled */
@@ -411,13 +431,21 @@ class Email implements ShouldQueue
             if ($address_object->address == " ") {
                 return true;
             }
+
+            if ($address_object->address == "") {
+                return true;
+            }
+
+            if($address_object->name == " " || $address_object->name == "") {
+                return true;
+            }
         }
 
 
         return false;
     }
 
-        /**
+    /**
      * Sets the mail driver to use and applies any specific configuration
      * the the mailable
      */
@@ -432,6 +460,7 @@ class Email implements ShouldQueue
                 $this->setGmailMailer();
                 return $this;
             case 'office365':
+            case 'microsoft':
                 $this->mailer = 'office365';
                 $this->setOfficeMailer();
                 return $this;
@@ -445,7 +474,8 @@ class Email implements ShouldQueue
                 return $this;
 
             default:
-                break;
+                $this->mailer = config('mail.default');
+                return $this;
         }
 
         if (Ninja::isSelfHost()) {
@@ -455,7 +485,7 @@ class Email implements ShouldQueue
         return $this;
     }
 
-        /**
+    /**
      * Allows configuration of multiple mailers
      * per company for use by self hosted users
      */

@@ -12,10 +12,12 @@
 namespace App\Transformers;
 
 use App\Models\Client;
+use App\Models\Credit;
 use App\Models\Document;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Paymentable;
+use App\Models\PaymentType;
 use App\Utils\Traits\MakesHash;
 
 class PaymentTransformer extends EntityTransformer
@@ -24,14 +26,16 @@ class PaymentTransformer extends EntityTransformer
 
     protected $serializer;
 
-    protected $defaultIncludes = [
+    protected array $defaultIncludes = [
         'paymentables',
         'documents',
     ];
 
-    protected $availableIncludes = [
+    protected array $availableIncludes = [
         'client',
         'invoices',
+        'type',
+        'credits',
     ];
 
     public function __construct($serializer = null)
@@ -46,6 +50,13 @@ class PaymentTransformer extends EntityTransformer
         $transformer = new InvoiceTransformer($this->serializer);
 
         return $this->includeCollection($payment->invoices, $transformer, Invoice::class);
+    }
+
+    public function includeCredits(Payment $payment)
+    {
+        $transformer = new CreditTransformer($this->serializer);
+
+        return $this->includeCollection($payment->credits, $transformer, Credit::class);
     }
 
     public function includeClient(Payment $payment)
@@ -67,6 +78,11 @@ class PaymentTransformer extends EntityTransformer
         $transformer = new DocumentTransformer($this->serializer);
 
         return $this->includeCollection($payment->documents, $transformer, Document::class);
+    }
+
+    public function includeType(Payment $payment)
+    {
+        return $this->includeItem($payment, new PaymentTypeTransformer, PaymentType::class);
     }
 
     public function transform(Payment $payment)

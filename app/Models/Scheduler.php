@@ -11,28 +11,12 @@
 
 namespace App\Models;
 
-use App\Models\Company;
-use App\Models\BaseModel;
-use App\Models\RecurringInvoice;
 use App\Services\Scheduler\SchedulerService;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * App\Models\Scheduler
  *
- * @property bool paused
- * @property bool is_deleted
- * @property \Carbon\Carbon|mixed start_from
- * @property int frequency_id
- * @property \Carbon\Carbon|mixed next_run
- * @property int company_id
- * @property int updated_at
- * @property int created_at
- * @property int deleted_at
- * @property string action_name
- * @property mixed company
- * @property array parameters
- * @property string action_class
  * @property int $id
  * @property bool $is_deleted
  * @property int|null $created_at
@@ -42,8 +26,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $company_id
  * @property bool $is_paused
  * @property int|null $frequency_id
- * @property \Illuminate\Support\Carbon|null $next_run
- * @property \Illuminate\Support\Carbon|null $next_run_client
+ * @property \Carbon\Carbon|\Illuminate\Support\Carbon|null $next_run_client
+ * @property \Carbon\Carbon|\Illuminate\Support\Carbon|null $next_run
  * @property int $user_id
  * @property string $name
  * @property string $template
@@ -59,21 +43,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @method static \Illuminate\Database\Eloquent\Builder|Scheduler onlyTrashed()
  * @method static \Illuminate\Database\Eloquent\Builder|Scheduler query()
  * @method static \Illuminate\Database\Eloquent\Builder|BaseModel scope()
- * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereCompanyId($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereDeletedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereFrequencyId($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereIsDeleted($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereIsPaused($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereName($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereNextRun($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereNextRunClient($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereParameters($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereRemainingCycles($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereTemplate($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereUpdatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Scheduler whereUserId($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Scheduler withTrashed()
  * @method static \Illuminate\Database\Eloquent\Builder|Scheduler withoutTrashed()
  * @property-read \App\Models\User $user
@@ -196,11 +165,21 @@ class Scheduler extends BaseModel
                 $next_run =  null;
         }
 
-
         $this->next_run_client = $next_run ?: null;
         $this->next_run = $next_run ? $next_run->copy()->addSeconds($offset) : null;
         $this->save();
     }
 
+    public function adjustOffset(): void
+    {
+        if (! $this->next_run) {
+            return;
+        }
 
+        $offset = $this->company->timezone_offset();
+
+        $this->next_run = $this->next_run->copy()->addSeconds($offset);
+        $this->save();
+
+    }
 }

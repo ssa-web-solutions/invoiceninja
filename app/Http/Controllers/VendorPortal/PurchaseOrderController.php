@@ -18,13 +18,15 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\VendorPortal\PurchaseOrders\ProcessPurchaseOrdersInBulkRequest;
 use App\Http\Requests\VendorPortal\PurchaseOrders\ShowPurchaseOrderRequest;
 use App\Http\Requests\VendorPortal\PurchaseOrders\ShowPurchaseOrdersRequest;
+use App\Jobs\Entity\CreateRawPdf;
 use App\Jobs\Invoice\InjectSignature;
 use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderInvitation;
 use App\Utils\Ninja;
 use App\Utils\Traits\MakesDates;
 use App\Utils\Traits\MakesHash;
 use Illuminate\Contracts\View\Factory;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class PurchaseOrderController extends Controller
@@ -72,10 +74,10 @@ class PurchaseOrderController extends Controller
     }
 
     /**
-     * Show specific invoice.
+     * Show specific PurchaseOrder.
      *
-     * @param ShowInvoiceRequest $request
-     * @param Invoice $invoice
+     * @param ShowPurchaseOrderRequest $request
+     * @param PurchaseOrder $purchase_order
      *
      * @return Factory|View
      */
@@ -108,6 +110,22 @@ class PurchaseOrderController extends Controller
         return $this->render('purchase_orders.show', $data);
     }
 
+    public function showBlob($hash)
+    {
+        $data = Cache::pull($hash);
+
+        $invitation = PurchaseOrderInvitation::withTrashed()->find($data['invitation_id']);
+
+        $file = $invitation->purchase_order->service()->getPurchaseOrderPdf();
+
+        $headers = ['Content-Type' => 'application/pdf'];
+
+        return response()->make($file, 200, $headers);
+
+    }
+
+    
+
     private function sidebarMenu() :array
     {
         $enabled_modules = auth()->guard('vendor')->user()->company->enabled_modules;
@@ -131,7 +149,7 @@ class PurchaseOrderController extends Controller
         $transformed_ids = $this->transformKeys($request->purchase_orders);
 
         if ($request->input('action') == 'download') {
-            return $this->downloadInvoices((array) $transformed_ids);
+            return $this->downloadPurchaseOrders((array) $transformed_ids);
         } elseif ($request->input('action') == 'accept') {
             return $this->acceptPurchaseOrder($request->all());
         }
@@ -152,7 +170,8 @@ class PurchaseOrderController extends Controller
         $purchase_count_query = clone $purchase_orders;
 
         $purchase_orders->whereIn('status_id', [PurchaseOrder::STATUS_DRAFT, PurchaseOrder::STATUS_SENT])
-                        ->cursor()->each(function ($purchase_order) {
+                        ->cursor()
+                        ->each(function ($purchase_order) {
             
                             $purchase_order->service()
                                         ->markSent()
@@ -161,12 +180,11 @@ class PurchaseOrderController extends Controller
                                         ->save();
 
                             if (request()->has('signature') && ! is_null(request()->signature) && ! empty(request()->signature)) {
-                                (new InjectSignature($purchase_order, request()->signature))->handle();
-                                // InjectSignature::dispatch($purchase_order, request()->signature);
+                                (new InjectSignature($purchase_order, auth()->guard('vendor')->user()->id, request()->signature, request()->getClientIp()))->handle();
                             }
 
                             event(new PurchaseOrderWasAccepted($purchase_order, auth()->guard('vendor')->user(), $purchase_order->company, Ninja::eventVars()));
-        });
+                        });
 
         if ($purchase_count_query->count() == 1) {
             $purchase_order = $purchase_count_query->first();
@@ -177,38 +195,41 @@ class PurchaseOrderController extends Controller
         }
     }
 
-    public function downloadInvoices($ids)
+    public function downloadPurchaseOrders($ids)
     {
-        $purchase_orders = PurchaseOrder::whereIn('id', $ids)
-                            ->where('vendor_id', auth()->guard('vendor')->user()->vendor_id)
+        $purchase_order_invitations = PurchaseOrderInvitation::query()
+                            ->with('purchase_order', 'company')
+                            ->whereIn('purchase_order_id', $ids)
+                            ->where('vendor_contact_id', auth()->guard('vendor')->user()->id)
                             ->withTrashed()
                             ->get();
 
-        if (count($purchase_orders) == 0) {
+        if (count($purchase_order_invitations) == 0) {
             return back()->with(['message' => ctrans('texts.no_items_selected')]);
         }
 
-        if (count($purchase_orders) == 1) {
-            $purchase_order = $purchase_orders->first();
+        if (count($purchase_order_invitations) == 1) {
 
-            $file = $purchase_order->service()->getPurchaseOrderPdf(auth()->guard('vendor')->user());
+            $invitation = $purchase_order_invitations->first();
+            $file = (new CreateRawPdf($invitation))->handle();
 
             return response()->streamDownload(function () use ($file) {
-                echo Storage::get($file);
-            }, basename($file), ['Content-Type' => 'application/pdf']);
+                echo $file;
+            }, $invitation->purchase_order->numberFormatter().".pdf", ['Content-Type' => 'application/pdf']);
         }
 
-        return $this->buildZip($purchase_orders);
+        return $this->buildZip($purchase_order_invitations);
     }
 
-    private function buildZip($purchase_orders)
+    private function buildZip($invitations)
     {
         // create new archive
         $zipFile = new \PhpZip\ZipFile();
         try {
-            foreach ($purchase_orders as $purchase_order) {
-                //add it to the zip
-                $zipFile->addFromString(basename($purchase_order->pdf_file_path()), file_get_contents($purchase_order->pdf_file_path(null, 'url', true)));
+            foreach ($invitations as $invitation) {
+            
+                $file = (new CreateRawPdf($invitation))->handle();
+                $zipFile->addFromString($invitation->purchase_order->numberFormatter().".pdf", $file);
             }
 
             $filename = date('Y-m-d').'_'.str_replace(' ', '_', trans('texts.purchase_orders')).'.zip';

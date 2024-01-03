@@ -139,7 +139,7 @@ class AuthorizeCustomer
                         continue;
                     }
 
-//                    $expiry = $payment_profile->getPayment()->getCreditCard()->getExpirationDate();
+                    //                    $expiry = $payment_profile->getPayment()->getCreditCard()->getExpirationDate();
 
                     $payment_meta = new \stdClass;
                     $payment_meta->exp_month = 'xx';

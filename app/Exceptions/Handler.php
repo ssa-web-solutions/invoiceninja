@@ -11,30 +11,31 @@
 
 namespace App\Exceptions;
 
-use Throwable;
-use PDOException;
 use App\Utils\Ninja;
-use Sentry\State\Scope;
-use Illuminate\Support\Arr;
-use Illuminate\Http\Request;
-use Sentry\Laravel\Integration;
-use Illuminate\Support\Facades\Schema;
+use Aws\Exception\CredentialsException;
 use GuzzleHttp\Exception\ConnectException;
-use Illuminate\Auth\AuthenticationException;
-use League\Flysystem\UnableToCreateDirectory;
-use Illuminate\Session\TokenMismatchException;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Queue\MaxAttemptsExceededException;
-use Illuminate\Http\Exceptions\ThrottleRequestsException;
-use Symfony\Component\Process\Exception\RuntimeException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException as ModelNotFoundException;
 use Illuminate\Database\Eloquent\RelationNotFoundException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
-use Symfony\Component\Console\Exception\CommandNotFoundException;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
-use Illuminate\Database\Eloquent\ModelNotFoundException as ModelNotFoundException;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Http\Request;
+use Illuminate\Queue\MaxAttemptsExceededException;
+use Illuminate\Session\TokenMismatchException;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
+use League\Flysystem\UnableToCreateDirectory;
+use PDOException;
+use Sentry\Laravel\Integration;
+use Sentry\State\Scope;
+use Symfony\Component\Console\Exception\CommandNotFoundException;
+use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Process\Exception\RuntimeException;
+use Throwable;
 
 class Handler extends ExceptionHandler
 {
@@ -64,7 +65,7 @@ class Handler extends ExceptionHandler
         ConnectException::class,
         RuntimeException::class,
         InvalidArgumentException::class,
-        Aws\Exception\CredentialsException::class,
+        CredentialsException::class,
     ];
 
     protected $hostedDontReport = [
@@ -105,7 +106,7 @@ class Handler extends ExceptionHandler
 
             if($exception instanceof ThrottleRequestsException && class_exists(\Modules\Admin\Events\ThrottledExceptionRaised::class)) {
                 $uri = urldecode(request()->getRequestUri());
-                event(new \Modules\Admin\Events\ThrottledExceptionRaised(auth()->user()?->account?->key, $uri, request()->ip()));
+                // event(new \Modules\Admin\Events\ThrottledExceptionRaised(auth()->user()?->account?->key, $uri, request()->ip()));
             }
 
             Integration::configureScope(function (Scope $scope): void {

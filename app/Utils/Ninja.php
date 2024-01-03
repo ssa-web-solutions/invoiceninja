@@ -43,7 +43,7 @@ class Ninja
 
     public static function getDebugInfo()
     {
-        $mysql_version = DB::select(DB::raw('select version() as version'))[0]->version;
+        $mysql_version = DB::select('select version() as version')[0]->version;
 
         $version = request()->input('version', 'No Version Supplied.');
 
@@ -132,7 +132,7 @@ class Ninja
             'ip' => $ip,
             'token' => request()->header('X-API-TOKEN'),
             'is_system' => app()->runningInConsole(),
-            'user_id' => $user_id,
+            'user_id' => ($ip == '127.0.0.1') ? null : $user_id,
         ];
     }
 
@@ -164,8 +164,7 @@ class Ninja
             ]);
 
             nlog($x->body());
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             nlog("Attempt forwarding for {$email} - {$company_key} Failed");
         }
     }

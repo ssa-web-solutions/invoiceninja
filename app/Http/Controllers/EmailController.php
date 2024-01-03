@@ -14,7 +14,6 @@ namespace App\Http\Controllers;
 use App\Events\Credit\CreditWasEmailed;
 use App\Events\Quote\QuoteWasEmailed;
 use App\Http\Requests\Email\SendEmailRequest;
-use App\Jobs\Entity\EmailEntity;
 use App\Jobs\PurchaseOrder\PurchaseOrderEmail;
 use App\Models\Credit;
 use App\Models\Invoice;
@@ -30,7 +29,6 @@ use App\Transformers\QuoteTransformer;
 use App\Transformers\RecurringInvoiceTransformer;
 use App\Utils\Ninja;
 use App\Utils\Traits\MakesHash;
-use Illuminate\Http\Response;
 use Illuminate\Mail\Mailables\Address;
 
 class EmailController extends BaseController
@@ -71,16 +69,22 @@ class EmailController extends BaseController
         /** @var \App\Models\User $user */
         $user = auth()->user();
 
-        if ($request->has('cc_email') && $request->cc_email && (Ninja::isSelfHost() || $user->account->isPaidHostedClient())) {
-            $mo->cc[] = new Address($request->cc_email);
+        if ($request->cc_email && (Ninja::isSelfHost() || $user->account->isPaidHostedClient())) {
+ 
+            foreach($request->cc_email as $email) {
+                $mo->cc[] = new Address($email);
+            }
+
         }
 
-        $entity_obj->invitations->each(function ($invitation) use ($data, $entity_obj, $template, $mo) {
+        $entity_obj->invitations->each(function ($invitation) use ($entity_obj, $mo) {
             if (! $invitation->contact->trashed() && $invitation->contact->email) {
                 $entity_obj->service()->markSent()->save();
 
                 $mo->invitation_id = $invitation->id;
-
+                $mo->client_id = $invitation->contact->client_id ?? null;
+                $mo->vendor_id = $invitation->contact->vendor_id ?? null;
+                
                 Email::dispatch($mo, $invitation->company);
             }
         });
@@ -127,7 +131,6 @@ class EmailController extends BaseController
             $this->entity_transformer = PurchaseOrderTransformer::class;
         }
 
-        // @phpstan-ignore-next-line
         return $this->itemResponse($entity_obj->fresh());
     }
 
@@ -146,6 +149,8 @@ class EmailController extends BaseController
 
     private function resolveClass(string $entity): string
     {
+        $class = '';
+        
         match ($entity) {
             'invoice' => $class = Invoice::class,
             'App\Models\Invoice' => $class = Invoice::class,

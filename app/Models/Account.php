@@ -78,57 +78,16 @@ use Laracasts\Presenter\PresentableTrait;
  * @property-read mixed $hashed_id
  * @property-read \App\Models\Payment|null $payment
  * @property-read int|null $users_count
- * @method static \Illuminate\Database\Eloquent\Builder|BaseModel company()
  * @method static \Illuminate\Database\Eloquent\Builder|BaseModel exclude($columns)
  * @method static \Database\Factories\AccountFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder|Account newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder|Account newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder|Account query()
  * @method static \Illuminate\Database\Eloquent\Builder|BaseModel scope()
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereAccountSmsVerificationCode($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereAccountSmsVerificationNumber($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereAccountSmsVerified($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereBankIntegrationAccountId($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereDefaultCompanyId($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereHostedClientCount($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereHostedCompanyCount($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereInappTransactionId($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereIsFlagged($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereIsMigrated($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereIsOnboarding($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereIsSchedulerRunning($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereIsTrial($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereIsVerifiedAccount($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereKey($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereLatestVersion($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereNumUsers($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereOnboarding($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account wherePaymentId($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account wherePlan($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account wherePlanExpires($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account wherePlanPaid($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account wherePlanPrice($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account wherePlanStarted($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account wherePlanTerm($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account wherePlatform($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereReferralCode($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereReportErrors($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereSetReactAsDefaultAp($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereTrialDuration($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereTrialPlan($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereTrialStarted($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereUpdatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereUserAgent($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereUtmCampaign($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereUtmContent($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereUtmMedium($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereUtmSource($value)
- * @method static \Illuminate\Database\Eloquent\Builder|Account whereUtmTerm($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Account first()
  * @method static \Illuminate\Database\Eloquent\Builder|Account with()
- * @method static \Illuminate\Database\Eloquent\Builder|Account count() 
+ * @method static \Illuminate\Database\Eloquent\Builder|Account count()
+ * @method static \Illuminate\Database\Eloquent\Builder|Account where($query)
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\BankIntegration> $bank_integrations
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Company> $companies
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\CompanyUser> $company_users
@@ -151,12 +110,13 @@ class Account extends BaseModel
     protected $presenter = AccountPresenter::class;
 
     protected $fillable = [
-        'plan',
-        'plan_term',
-        'plan_price',
-        'plan_paid',
-        'plan_started',
-        'plan_expires',
+        // 'plan',
+        // 'plan_term',
+        // 'plan_price',
+        // 'plan_paid',
+        // 'plan_started',
+        // 'plan_expires',
+        // 'num_users',
         'utm_source',
         'utm_medium',
         'utm_campaign',
@@ -166,18 +126,6 @@ class Account extends BaseModel
         'platform',
         'set_react_as_default_ap',
         'inapp_transaction_id',
-        'num_users',
-    ];
-
-    /**
-     * @var array
-     */
-    protected $dates = [
-        'deleted_at',
-        'promo_expires',
-        'discount_expires',
-        // 'trial_started',
-        // 'plan_expires'
     ];
 
     protected $casts = [
@@ -185,7 +133,9 @@ class Account extends BaseModel
         'created_at' => 'timestamp',
         'deleted_at' => 'timestamp',
         'onboarding' => 'object',
-        'set_react_as_default_ap' => 'bool'
+        'set_react_as_default_ap' => 'bool',
+        'promo_expires' => 'date',
+        'discount_expires' => 'date',
     ];
 
     const PLAN_FREE = 'free';
@@ -227,42 +177,46 @@ class Account extends BaseModel
         return self::class;
     }
 
-    public function users()
+    public function users(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(User::class)->withTrashed();
     }
 
-    public function default_company()
+    public function default_company(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(Company::class, 'id', 'default_company_id');
     }
 
-    public function payment()
+    public function payment(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Payment::class)->withTrashed();
     }
 
-    public function companies()
+    public function companies(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Company::class);
     }
 
-    public function bank_integrations()
+    public function bank_integrations(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(BankIntegration::class);
     }
 
-    public function company_users()
+    public function company_users(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(CompanyUser::class);
     }
 
+    /**
+     * Returns the owner of the Account - not a HasMany relation
+     * @return \App\Models\User | bool
+     */
     public function owner()
     {
         return $this->hasMany(CompanyUser::class)->where('is_owner', true)->first() ? $this->hasMany(CompanyUser::class)->where('is_owner', true)->first()->user : false;
     }
 
-    public function tokens()
+    public function tokens(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(CompanyToken::class)->withTrashed();
     }
@@ -316,7 +270,7 @@ class Account extends BaseModel
             case self::FEATURE_REMOVE_CREATED_BY:
                 return ! empty($plan_details); // A plan is required even for self-hosted users
 
-            // Enterprise; No Trial allowed; grandfathered for old pro users
+                // Enterprise; No Trial allowed; grandfathered for old pro users
             case self::FEATURE_USERS:// Grandfathered for old Pro users
                 if ($plan_details && $plan_details['trial']) {
                     // Do they have a non-trial plan?
@@ -335,12 +289,12 @@ class Account extends BaseModel
         }
     }
 
-    public function isPaid()
+    public function isPaid(): bool
     {
         return Ninja::isNinja() ? ($this->isPaidHostedClient() && ! $this->isTrial()) : $this->hasFeature(self::FEATURE_WHITE_LABEL);
     }
 
-    public function isPaidHostedClient()
+    public function isPaidHostedClient(): bool
     {
         if (! Ninja::isNinja()) {
             return false;
@@ -354,7 +308,7 @@ class Account extends BaseModel
         return $this->plan == 'pro' || $this->plan == 'enterprise';
     }
 
-    public function isFreeHostedClient()
+    public function isFreeHostedClient(): bool
     {
         if (! Ninja::isNinja()) {
             return false;
@@ -367,7 +321,7 @@ class Account extends BaseModel
         return $this->plan == 'free' || is_null($this->plan) || empty($this->plan);
     }
 
-    public function isEnterpriseClient()
+    public function isEnterpriseClient(): bool
     {
         if (! Ninja::isNinja()) {
             return false;
@@ -376,7 +330,7 @@ class Account extends BaseModel
         return $this->plan == 'enterprise';
     }
 
-    public function isTrial()
+    public function isTrial(): bool
     {
         if (! Ninja::isNinja()) {
             return false;
@@ -387,7 +341,7 @@ class Account extends BaseModel
         return $plan_details && $plan_details['trial'];
     }
 
-    public function startTrial($plan)
+    public function startTrial($plan): void
     {
         if (! Ninja::isNinja()) {
             return;
@@ -554,7 +508,7 @@ class Account extends BaseModel
                     $nmo->to_user = $this->companies()->first()->owner();
                     NinjaMailerJob::dispatch($nmo, true);
 
-                    Cache::put("throttle_notified:{$this->key}", true, 60 * 24);
+                    Cache::put("throttle_notified:{$this->key}", true, 60 * 60 * 24);
 
                     if (config('ninja.notification.slack')) {
                         $this->companies()->first()->notification(new EmailQuotaNotification($this))->ninja();
@@ -630,8 +584,9 @@ class Account extends BaseModel
         if ($plan_expires->gt(now())) {
             $diff = $plan_expires->diffInDays();
             
-            if ($diff > 14)
+            if ($diff > 14) {
                 return 0;
+            }
 
             return $diff;
         }
